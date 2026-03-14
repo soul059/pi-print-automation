@@ -44,6 +44,8 @@ export default function UploadPage() {
   const [duplex, setDuplex] = useState(savedPrefs.current.duplex ?? false);
   const [color, setColor] = useState<'grayscale' | 'color'>(savedPrefs.current.color ?? 'grayscale');
   const [printMode, setPrintMode] = useState<'now' | 'later'>(savedPrefs.current.printMode ?? 'now');
+  const [scheduleForLater, setScheduleForLater] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState('');
   const [selectedPrinter, setSelectedPrinter] = useState('auto');
   const [printers, setPrinters] = useState<Array<{ name: string; online: boolean; status: string; accepting: boolean }>>([]);
 
@@ -115,6 +117,7 @@ export default function UploadPage() {
         color,
         printMode,
         printer: selectedPrinter !== 'auto' ? selectedPrinter : undefined,
+        scheduledAt: scheduleForLater && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       };
 
       const result = await api.uploadFile(files, config, token);
@@ -381,6 +384,47 @@ export default function UploadPage() {
                   <p className="text-xs text-gray-500 mt-1">Pick up when convenient</p>
                 </button>
               </div>
+            </div>
+
+            {/* Schedule for Later */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Schedule print for later
+                </label>
+                <button
+                  type="button"
+                  onClick={() => { setScheduleForLater(!scheduleForLater); if (scheduleForLater) setScheduledAt(''); }}
+                  className={`relative w-11 h-6 rounded-full transition ${
+                    scheduleForLater ? 'bg-primary-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition ${
+                      scheduleForLater ? 'left-[22px]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              {scheduleForLater && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Print at
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                    max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must be within the next 7 days. Your job will auto-print at this time.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

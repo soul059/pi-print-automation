@@ -11,6 +11,7 @@ import {
   Clock,
   ArrowLeft,
   RefreshCw,
+  CalendarClock,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string; description: string }> = {
@@ -127,6 +128,28 @@ export default function StatusPage() {
           </div>
         )}
 
+        {job.scheduledAt && job.status === 'paid' && new Date(job.scheduledAt) > new Date() && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mt-4">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <CalendarClock size={18} className="text-indigo-600" />
+              <p className="text-sm font-medium text-indigo-800">Scheduled Print</p>
+            </div>
+            <p className="text-sm text-indigo-700">
+              Printing at: {new Date(job.scheduledAt).toLocaleString('en-IN')}
+            </p>
+            <p className="text-xs text-indigo-500 mt-1">
+              {(() => {
+                const diff = new Date(job.scheduledAt).getTime() - Date.now();
+                if (diff <= 0) return 'Starting soon…';
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                if (hours > 0) return `Printing in ${hours}h ${minutes}m`;
+                return `Printing in ${minutes}m`;
+              })()}
+            </p>
+          </div>
+        )}
+
         {job.refundStatus === 'refunded' && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
             <p className="text-sm font-medium text-green-800">💰 Payment Refunded</p>
@@ -177,6 +200,12 @@ export default function StatusPage() {
             <span className="text-gray-500 dark:text-gray-400">Created</span>
             <span>{new Date(job.createdAt).toLocaleString('en-IN')}</span>
           </div>
+          {job.scheduledAt && (
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-gray-400">Scheduled</span>
+              <span>{new Date(job.scheduledAt).toLocaleString('en-IN')}</span>
+            </div>
+          )}
           {job.errorMessage && (
             <div className="mt-2 p-2 bg-red-50 rounded text-red-600 text-xs">
               {job.errorMessage}

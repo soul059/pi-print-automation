@@ -206,4 +206,10 @@ const migrations = [
       )`,
     ],
   },
+  {
+    name: '009_scheduled_at',
+    statements: [
+      `ALTER TABLE jobs ADD COLUMN scheduled_at TEXT`,
+    ],
+  },
 ];

@@ -159,9 +159,10 @@ async function processJob(jobId: string): Promise<void> {
 export function startJobRecovery(): void {
   const db = getDb();
   // Recover paid jobs that were interrupted (e.g., server restart)
+  // Exclude scheduled jobs that are still in the future (the scheduler handles those)
   const stuckJobs = db
-    .prepare("SELECT id, status FROM jobs WHERE status IN ('paid', 'printing') ORDER BY created_at ASC")
-    .all() as Array<{ id: string; status: string }>;
+    .prepare("SELECT id, status, scheduled_at FROM jobs WHERE status IN ('paid', 'printing') ORDER BY created_at ASC")
+    .all() as Array<{ id: string; status: string; scheduled_at: string | null }>;
 
   if (stuckJobs.length > 0) {
     logger.info({ count: stuckJobs.length }, 'Recovering interrupted jobs');
@@ -170,6 +171,10 @@ export function startJobRecovery(): void {
       if (job.status === 'printing') {
         transitionJob(job.id, 'failed', 'Server restarted during printing');
         transitionJob(job.id, 'paid');
+      }
+      // Skip scheduled jobs still in the future — the scheduler will handle them
+      if (job.scheduled_at && new Date(job.scheduled_at) > new Date()) {
+        continue;
       }
       enqueueJob(job.id);
     }

@@ -4,6 +4,7 @@ import { logger } from './config/logger';
 import { runMigrations } from './db/migrations';
 import { initDb, closeDb } from './db/connection';
 import { startJobRecovery } from './services/queue';
+import { startScheduler, stopScheduler } from './services/scheduler';
 import fs from 'fs';
 import path from 'path';
 
@@ -28,6 +29,9 @@ async function main() {
   // Recover any paid jobs that were interrupted
   startJobRecovery();
 
+  // Start scheduler for scheduled print jobs
+  startScheduler();
+
   // Start server
   httpServer.listen(env.PORT, () => {
     logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Print server started');
@@ -36,6 +40,7 @@ async function main() {
   // Graceful shutdown
   const shutdown = () => {
     logger.info('Shutting down...');
+    stopScheduler();
     httpServer.close(() => {
       closeDb();
       process.exit(0);

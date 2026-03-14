@@ -29,6 +29,7 @@ jobsRouter.get('/', requireAuth, (req: AuthRequest, res: Response) => {
       copies: j.copies,
       price: j.price,
       printerName: j.printer_name || null,
+      scheduledAt: j.scheduled_at || null,
       createdAt: j.created_at,
       updatedAt: j.updated_at,
     })),
@@ -98,6 +99,7 @@ jobsRouter.get('/:jobId', requireAuth, (req: AuthRequest, res: Response) => {
     refundStatus: payment?.refund_status || null,
     refundId: payment?.refund_id || null,
     queuePosition: (job.status === 'paid' || job.status === 'printing') ? getQueuePosition(job.id) : null,
+    scheduledAt: job.scheduled_at || null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   });

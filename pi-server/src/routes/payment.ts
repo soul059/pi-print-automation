@@ -153,7 +153,11 @@ paymentRouter.post('/verify', requireAuth, async (req: AuthRequest, res: Respons
     // Transition job and enqueue for printing
     const transitioned = transitionJob(payment.job_id, 'paid');
     if (transitioned) {
-      enqueueJob(payment.job_id);
+      const job = getJob(payment.job_id);
+      const isScheduledForLater = job?.scheduled_at && new Date(job.scheduled_at) > new Date();
+      if (!isScheduledForLater) {
+        enqueueJob(payment.job_id);
+      }
     }
 
     res.json({ success: true, jobId: payment.job_id, status: 'paid' });
@@ -218,7 +222,10 @@ paymentRouter.post('/wallet', requireAuth, async (req: AuthRequest, res: Respons
     transitionJob(job.id, 'payment_pending');
     const transitioned = transitionJob(job.id, 'paid');
     if (transitioned) {
-      enqueueJob(job.id);
+      const isScheduledForLater = job.scheduled_at && new Date(job.scheduled_at) > new Date();
+      if (!isScheduledForLater) {
+        enqueueJob(job.id);
+      }
     }
 
     res.json({ success: true, jobId: job.id, status: 'paid', balance: debitResult.balance });
@@ -293,8 +300,11 @@ paymentRouter.post('/webhook', async (req: Request, res: Response) => {
       if (job && (job.status === 'payment_pending' || job.status === 'uploaded')) {
         const transitioned = transitionJob(payment.job_id, 'paid');
         if (transitioned) {
-          enqueueJob(payment.job_id);
-          logger.info({ jobId: payment.job_id }, 'Webhook: payment verified, job enqueued');
+          const isScheduledForLater = job.scheduled_at && new Date(job.scheduled_at) > new Date();
+          if (!isScheduledForLater) {
+            enqueueJob(payment.job_id);
+          }
+          logger.info({ jobId: payment.job_id, scheduled: !!isScheduledForLater }, 'Webhook: payment verified, job processed');
         }
       }
     }

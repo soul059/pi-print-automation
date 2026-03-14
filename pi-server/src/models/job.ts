@@ -32,6 +32,7 @@ export interface Job {
   price: number;
   retry_count: number;
   error_message: string | null;
+  scheduled_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,13 +62,14 @@ export function createJob(data: {
   printMode?: PrintMode;
   price: number;
   printerName?: string;
+  scheduledAt?: string;
 }): Job {
   const db = getDb();
   const id = `job_${nanoid(12)}`;
 
   db.prepare(
-    `INSERT INTO jobs (id, user_email, user_name, file_name, file_path, total_pages, print_pages, paper_size, copies, duplex, color, print_mode, price, printer_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO jobs (id, user_email, user_name, file_name, file_path, total_pages, print_pages, paper_size, copies, duplex, color, print_mode, price, printer_name, scheduled_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     data.userEmail,
@@ -82,7 +84,8 @@ export function createJob(data: {
     data.color || 'grayscale',
     data.printMode || 'now',
     data.price,
-    data.printerName || null
+    data.printerName || null,
+    data.scheduledAt || null
   );
 
   return db.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as Job;

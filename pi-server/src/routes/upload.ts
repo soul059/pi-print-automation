@@ -112,6 +112,30 @@ uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthR
       }
     }
 
+    // Validate scheduledAt if provided
+    let scheduledAt: string | undefined;
+    if (config.scheduledAt) {
+      const scheduledDate = new Date(config.scheduledAt);
+      if (isNaN(scheduledDate.getTime())) {
+        cleanupFiles(uploadedFiles.map(f => f.path));
+        res.status(400).json({ error: 'Invalid scheduledAt format. Use ISO 8601.' });
+        return;
+      }
+      const now = new Date();
+      if (scheduledDate.getTime() <= now.getTime()) {
+        cleanupFiles(uploadedFiles.map(f => f.path));
+        res.status(400).json({ error: 'scheduledAt must be in the future' });
+        return;
+      }
+      const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      if (scheduledDate.getTime() > maxDate.getTime()) {
+        cleanupFiles(uploadedFiles.map(f => f.path));
+        res.status(400).json({ error: 'scheduledAt must be within 7 days from now' });
+        return;
+      }
+      scheduledAt = scheduledDate.toISOString();
+    }
+
     // Validate page range format early (prevent injection downstream)
     if (config.pageRange && !/^[\d,\- ]+$/.test(config.pageRange)) {
       cleanupFiles(uploadedFiles.map(f => f.path));
@@ -187,6 +211,7 @@ uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthR
       printMode: config.printMode === 'later' ? 'later' : 'now',
       price: pricing.total,
       printerName: config.printer || undefined,
+      scheduledAt,
     });
 
     logger.info({ jobId: job.id, pages: totalPages, fileCount: uploadedFiles.length, price: pricing.total }, 'Job created');
