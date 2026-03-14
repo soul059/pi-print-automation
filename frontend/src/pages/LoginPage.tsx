@@ -4,6 +4,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import { Mail, User, KeyRound, Loader2, ArrowRight } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nContext';
 
 export default function LoginPage() {
   const [authMethod, setAuthMethod] = useState<'main' | 'otp-email' | 'otp-verify'>('main');
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [department, setDepartment] = useState('');
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   if (isAuthenticated) {
     navigate('/');
@@ -84,8 +86,8 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">Print Service</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-center mb-8">Sign in with your university account</p>
+        <h1 className="text-2xl font-bold text-center mb-2">{t('app.title')}</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-center mb-8">{t('login.title')}</p>
 
         {authMethod === 'main' && (
           <div className="space-y-5">
@@ -181,7 +183,7 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white py-2.5 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
-              Send OTP
+              {t('login.otp')}
             </button>
 
             <button
@@ -231,7 +233,7 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white py-2.5 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-              Verify & Sign In
+              {t('login.verify')}
             </button>
 
             <button

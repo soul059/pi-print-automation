@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { AdminProvider, useAdmin } from './hooks/useAdmin';
+import { I18nProvider } from './i18n/I18nContext';
 import Layout from './components/Layout';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import LoginPage from './pages/LoginPage';
@@ -28,9 +29,10 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AdminProvider>
-        <Layout>
+    <I18nProvider>
+      <AuthProvider>
+        <AdminProvider>
+          <Layout>
           <AnnouncementBanner />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -102,8 +104,9 @@ export default function App() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </Layout>
-      </AdminProvider>
-    </AuthProvider>
+          </Layout>
+        </AdminProvider>
+      </AuthProvider>
+    </I18nProvider>
   );
 }

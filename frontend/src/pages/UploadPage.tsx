@@ -15,6 +15,7 @@ import {
   Printer,
   AlertTriangle,
 } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nContext';
 
 const PAPER_SIZES = ['A4', 'Letter', 'Legal', 'A3', 'A5'];
 const MAX_FILES = 10;
@@ -25,6 +26,7 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { load: loadPrefs, save: savePrefs } = usePreferences();
+  const { t } = useTranslation();
   const savedPrefs = useRef(loadPrefs());
 
   const [files, setFiles] = useState<File[]>([]);
@@ -143,7 +145,7 @@ export default function UploadPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Print a Document</h1>
+        <h1 className="text-2xl font-bold">{t('upload.title')}</h1>
       </div>
 
       <PrinterStatusBadge enabled={files.length > 0} />
@@ -214,7 +216,7 @@ export default function UploadPage() {
           ) : (
             <div>
               <Upload size={32} className="mx-auto mb-2 text-gray-400" />
-              <p className="font-medium text-gray-600">Click to upload PDFs</p>
+              <p className="font-medium text-gray-600">{t('upload.dropzone')}</p>
               <p className="text-sm text-gray-400 mt-1">Max {MAX_FILES} files, 50 MB total</p>
             </div>
           )}
@@ -225,14 +227,14 @@ export default function UploadPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 space-y-5">
             <div className="flex items-center gap-2 mb-4">
               <Settings size={20} className="text-gray-500" />
-              <h2 className="text-lg font-semibold">Print Options</h2>
+              <h2 className="text-lg font-semibold">{t('upload.options')}</h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Page Range */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Page Range
+                  {t('upload.pageRange')}
                 </label>
                 <input
                   type="text"
@@ -246,7 +248,7 @@ export default function UploadPage() {
               {/* Paper Size */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Paper Size
+                  {t('upload.paperSize')}
                 </label>
                 <select
                   value={paperSize}
@@ -262,7 +264,7 @@ export default function UploadPage() {
               {/* Copies */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Copies
+                  {t('upload.copies')}
                 </label>
                 <input
                   type="number"
@@ -276,7 +278,7 @@ export default function UploadPage() {
 
               {/* Color */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('upload.color')}</label>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -308,14 +310,14 @@ export default function UploadPage() {
               {printers.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <span className="flex items-center gap-1"><Printer size={14} /> Printer</span>
+                    <span className="flex items-center gap-1"><Printer size={14} /> {t('upload.printer')}</span>
                   </label>
                   <select
                     value={selectedPrinter}
                     onChange={(e) => setSelectedPrinter(e.target.value)}
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                   >
-                    <option value="auto">Auto (least busy)</option>
+                    <option value="auto">{t('upload.printerAuto')}</option>
                     {printers.map((p) => (
                       <option key={p.name} value={p.name} disabled={!p.online}>
                         {p.name} {p.online ? '🟢' : '🔴'}
@@ -329,7 +331,7 @@ export default function UploadPage() {
             {/* Duplex */}
             <div className="flex items-center justify-between py-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Double-sided printing
+                {t('upload.duplex')}
                 {!canDuplex && <span className="text-gray-400 ml-1">(not available)</span>}
               </label>
               <button
@@ -351,7 +353,7 @@ export default function UploadPage() {
             {/* Print Mode */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Print Mode
+                {t('upload.mode')}
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -363,7 +365,7 @@ export default function UploadPage() {
                       : 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-600'
                   }`}
                 >
-                  <p className="font-medium text-sm">Print Now</p>
+                  <p className="font-medium text-sm">{t('upload.mode.now')}</p>
                   <p className="text-xs text-gray-500 mt-1">Get your printout immediately</p>
                 </button>
                 <button
@@ -375,7 +377,7 @@ export default function UploadPage() {
                       : 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-600'
                   }`}
                 >
-                  <p className="font-medium text-sm">Collect Later</p>
+                  <p className="font-medium text-sm">{t('upload.mode.later')}</p>
                   <p className="text-xs text-gray-500 mt-1">Pick up when convenient</p>
                 </button>
               </div>
@@ -399,7 +401,7 @@ export default function UploadPage() {
             ) : (
               <CreditCard size={20} />
             )}
-            {loading ? 'Uploading...' : 'Continue to Payment'}
+            {loading ? 'Uploading...' : t('upload.submit')}
           </button>
         )}
       </form>
