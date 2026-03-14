@@ -50,6 +50,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/payment', paymentRouter);
 app.use('/api/printer', printerRouter);
+app.use('/api/printers', printerRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/wallet', walletRouter);

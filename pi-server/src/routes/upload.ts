@@ -171,6 +171,7 @@ uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthR
       color,
       printMode: config.printMode === 'later' ? 'later' : 'now',
       price: pricing.total,
+      printerName: config.printer || undefined,
     });
 
     logger.info({ jobId: job.id, pages: totalPages, fileCount: uploadedFiles.length, price: pricing.total }, 'Job created');

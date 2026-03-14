@@ -163,6 +163,12 @@ export default function StatusPage() {
             <span className="text-gray-500">File</span>
             <span>{job.fileName}</span>
           </div>
+          {job.printerName && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Printer</span>
+              <span>{job.printerName}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-500">Price</span>
             <span>₹{(job.price / 100).toFixed(2)}</span>

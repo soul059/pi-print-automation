@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import { requireAdmin, generateAdminToken } from '../middleware/auth';
 import { getAllPolicies, createPolicy, updatePolicy, deletePolicy } from '../services/policy';
 import { getAllJobs, transitionJob, getJob } from '../models/job';
-import { getPrinterStatus } from '../services/cups';
+import { getPrinterStatus, getAllPrinterStatuses, enablePrinter, disablePrinter, listPrinters } from '../services/cups';
+import { getOrProbePrinter } from '../models/printer';
 import { enqueueJob, getQueueDepth } from '../services/queue';
 import { processRefund } from '../services/refund';
 import { getDb } from '../db/connection';
@@ -302,6 +303,68 @@ adminRouter.delete('/announcements/:id', (req: Request<{id: string}>, res: Respo
   } catch (err: any) {
     logger.error({ err: err.message }, 'Failed to delete announcement');
     res.status(500).json({ error: 'Failed to delete announcement' });
+  }
+});
+
+// --- Printers ---
+
+adminRouter.get('/printers', async (_req: Request, res: Response) => {
+  try {
+    const statuses = await getAllPrinterStatuses();
+    const detailed = await Promise.all(
+      statuses.map(async (s) => {
+        const profile = await getOrProbePrinter(s.printerName);
+        return {
+          name: s.printerName,
+          online: s.online,
+          status: s.status,
+          accepting: s.accepting,
+          capabilities: profile
+            ? {
+                color: profile.supports_color === 1,
+                duplex: profile.supports_duplex === 1,
+                paperSizes: JSON.parse(profile.paper_sizes || '["A4"]'),
+              }
+            : null,
+        };
+      })
+    );
+    res.json({ printers: detailed });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to list printers');
+    res.status(500).json({ error: 'Failed to list printers' });
+  }
+});
+
+adminRouter.post('/printers/:name/enable', async (req: Request<{name: string}>, res: Response) => {
+  try {
+    const printerName = req.params.name;
+    const printers = await listPrinters();
+    if (!printers.includes(printerName)) {
+      res.status(404).json({ error: 'Printer not found in CUPS' });
+      return;
+    }
+    await enablePrinter(printerName);
+    res.json({ success: true, printer: printerName, enabled: true });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to enable printer');
+    res.status(500).json({ error: 'Failed to enable printer' });
+  }
+});
+
+adminRouter.post('/printers/:name/disable', async (req: Request<{name: string}>, res: Response) => {
+  try {
+    const printerName = req.params.name;
+    const printers = await listPrinters();
+    if (!printers.includes(printerName)) {
+      res.status(404).json({ error: 'Printer not found in CUPS' });
+      return;
+    }
+    await disablePrinter(printerName);
+    res.json({ success: true, printer: printerName, enabled: false });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to disable printer');
+    res.status(500).json({ error: 'Failed to disable printer' });
   }
 });
 

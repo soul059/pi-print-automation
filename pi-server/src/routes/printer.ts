@@ -1,9 +1,26 @@
 import { Router, Request, Response } from 'express';
-import { getPrinterStatus, listPrinters } from '../services/cups';
+import { getPrinterStatus, listPrinters, getAllPrinterStatuses } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
 import { getQueueDepth, getEstimatedWaitMinutes } from '../services/queue';
 
 export const printerRouter = Router();
+
+// Public: list all printers with status
+printerRouter.get('/list', async (_req: Request, res: Response) => {
+  try {
+    const statuses = await getAllPrinterStatuses();
+    res.json({
+      printers: statuses.map((s) => ({
+        name: s.printerName,
+        online: s.online,
+        status: s.status,
+        accepting: s.accepting,
+      })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ printers: [], error: err.message });
+  }
+});
 
 printerRouter.get('/status', async (_req: Request, res: Response) => {
   try {
@@ -44,9 +61,4 @@ printerRouter.get('/status', async (_req: Request, res: Response) => {
       error: err.message,
     });
   }
-});
-
-printerRouter.get('/list', async (_req: Request, res: Response) => {
-  const printers = await listPrinters();
-  res.json({ printers });
 });

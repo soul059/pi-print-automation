@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePrinterStatus } from '../hooks/usePrinterStatus';
@@ -12,6 +12,7 @@ import {
   Settings,
   CreditCard,
   X,
+  Printer,
 } from 'lucide-react';
 
 const PAPER_SIZES = ['A4', 'Letter', 'Legal', 'A3', 'A5'];
@@ -39,6 +40,16 @@ export default function UploadPage() {
   const [duplex, setDuplex] = useState(savedPrefs.current.duplex ?? false);
   const [color, setColor] = useState<'grayscale' | 'color'>(savedPrefs.current.color ?? 'grayscale');
   const [printMode, setPrintMode] = useState<'now' | 'later'>(savedPrefs.current.printMode ?? 'now');
+  const [selectedPrinter, setSelectedPrinter] = useState('auto');
+  const [printers, setPrinters] = useState<Array<{ name: string; online: boolean; status: string; accepting: boolean }>>([]);
+
+  // Fetch available printers when files are selected
+  useEffect(() => {
+    if (files.length === 0) return;
+    api.getPrinters().then((data: any) => {
+      if (data.printers) setPrinters(data.printers);
+    }).catch(() => {});
+  }, [files.length]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -91,6 +102,7 @@ export default function UploadPage() {
         duplex,
         color,
         printMode,
+        printer: selectedPrinter !== 'auto' ? selectedPrinter : undefined,
       };
 
       const result = await api.uploadFile(files, config, token);
@@ -256,6 +268,27 @@ export default function UploadPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Printer Selection */}
+              {printers.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <span className="flex items-center gap-1"><Printer size={14} /> Printer</span>
+                  </label>
+                  <select
+                    value={selectedPrinter}
+                    onChange={(e) => setSelectedPrinter(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  >
+                    <option value="auto">Auto (least busy)</option>
+                    {printers.map((p) => (
+                      <option key={p.name} value={p.name} disabled={!p.online}>
+                        {p.name} {p.online ? '🟢' : '🔴'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Duplex */}

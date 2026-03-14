@@ -64,6 +64,11 @@ export const api = {
     return res.json();
   },
 
+  async getPrinters() {
+    const res = await fetch(`${API_BASE}/api/printers/list`);
+    return res.json();
+  },
+
   // Payment
   async createPayment(jobId: string, token: string) {
     const res = await fetch(`${API_BASE}/api/payment/create`, {

@@ -182,3 +182,56 @@ export async function getPrinterCapabilities(printerName: string): Promise<Recor
     return {};
   }
 }
+
+export async function getAllPrinterStatuses(): Promise<PrinterStatus[]> {
+  const printers = await listPrinters();
+  const statuses = await Promise.all(printers.map((name) => getPrinterStatus(name)));
+  return statuses;
+}
+
+export async function enablePrinter(printerName: string): Promise<void> {
+  const safeName = sanitizePrinterName(printerName);
+  await execFileAsync('cupsenable', [safeName]);
+  await execFileAsync('cupsaccept', [safeName]);
+}
+
+export async function disablePrinter(printerName: string): Promise<void> {
+  const safeName = sanitizePrinterName(printerName);
+  await execFileAsync('cupsdisable', [safeName]);
+  await execFileAsync('cupsreject', [safeName]);
+}
+
+export async function getLeastBusyPrinter(): Promise<string | null> {
+  const statuses = await getAllPrinterStatuses();
+  const available = statuses.filter((s) => s.online && s.accepting);
+  if (available.length === 0) return null;
+
+  // Count queued jobs per printer via lpstat -o
+  const jobCounts = new Map<string, number>();
+  for (const s of available) {
+    jobCounts.set(s.printerName, 0);
+  }
+
+  try {
+    const output = await execFileAsync('lpstat', ['-o']);
+    for (const line of output.split('\n')) {
+      const match = line.match(/^(\S+?)-\d+/);
+      if (match && jobCounts.has(match[1])) {
+        jobCounts.set(match[1], (jobCounts.get(match[1]) || 0) + 1);
+      }
+    }
+  } catch {
+    // If lpstat -o fails, just pick the first available
+  }
+
+  let leastBusy = available[0].printerName;
+  let minJobs = jobCounts.get(leastBusy) ?? 0;
+  for (const [name, count] of jobCounts) {
+    if (count < minJobs) {
+      leastBusy = name;
+      minJobs = count;
+    }
+  }
+
+  return leastBusy;
+}

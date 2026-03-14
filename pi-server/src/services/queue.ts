@@ -24,6 +24,7 @@ interface QueuedJob {
   duplex: number;
   color: string;
   retry_count: number;
+  printer_name: string | null;
 }
 
 let processing = false;
@@ -81,10 +82,26 @@ async function processJob(jobId: string): Promise<void> {
       printMode: job.print_mode as 'now' | 'later',
     });
 
-    // Get default printer
-    const printerName = await cups.getDefaultPrinter();
+    // Determine target printer
+    let printerName: string | null = null;
+    if (job.printer_name) {
+      printerName = job.printer_name;
+    } else {
+      printerName = await cups.getLeastBusyPrinter();
+    }
     if (!printerName) {
-      throw new Error('No default printer configured');
+      // Fall back to default printer
+      printerName = await cups.getDefaultPrinter();
+    }
+    if (!printerName) {
+      throw new Error('No printer available');
+    }
+
+    // Store resolved printer name on the job
+    if (!job.printer_name) {
+      db.prepare(
+        "UPDATE jobs SET printer_name = ?, updated_at = datetime('now') WHERE id = ?"
+      ).run(printerName, jobId);
     }
 
     // Submit to CUPS

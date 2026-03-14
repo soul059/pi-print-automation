@@ -180,4 +180,10 @@ const migrations = [
       )`,
     ],
   },
+  {
+    name: '007_jobs_printer_name',
+    statements: [
+      `ALTER TABLE jobs ADD COLUMN printer_name TEXT`,
+    ],
+  },
 ];

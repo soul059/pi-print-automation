@@ -248,6 +248,7 @@ function JobsTab({ token }: { token: string }) {
                 <p className="text-xs text-gray-500">{job.user_email} · {job.total_pages} pages · {job.copies} copies</p>
                 <p className="text-xs text-gray-400">
                   ₹{(job.price / 100).toFixed(2)} · {job.color} · {job.duplex ? 'duplex' : 'simplex'} · {job.print_mode}
+                  {job.printer_name && ` · 🖨 ${job.printer_name}`}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">{job.created_at}</p>
                 {job.error_message && (
