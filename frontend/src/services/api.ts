@@ -153,6 +153,14 @@ export const api = {
     return res.json();
   },
 
+  async adminGetAnalytics(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/analytics`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to fetch analytics');
+    return res.json();
+  },
+
   async adminGetPolicies(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/policies`, {
       headers: { Authorization: `Bearer ${token}` },

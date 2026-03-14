@@ -10,6 +10,7 @@ import JobsPage from './pages/JobsPage';
 import WalletPage from './pages/WalletPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import AnalyticsPage from './pages/admin/AnalyticsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -77,6 +78,14 @@ export default function App() {
               element={
                 <AdminRoute>
                   <AdminDashboardPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics"
+              element={
+                <AdminRoute>
+                  <AnalyticsPage />
                 </AdminRoute>
               }
             />

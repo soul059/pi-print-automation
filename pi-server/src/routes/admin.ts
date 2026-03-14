@@ -211,6 +211,75 @@ adminRouter.post('/jobs/:jobId/refund', async (req: Request<{jobId: string}>, re
   }
 });
 
+// --- Analytics ---
+
+adminRouter.get('/analytics', (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+
+    // Summary stats
+    const totalJobs = (db.prepare('SELECT COUNT(*) as count FROM jobs').get() as any)?.count ?? 0;
+    const completedJobs = (db.prepare("SELECT COUNT(*) as count FROM jobs WHERE status = 'completed'").get() as any)?.count ?? 0;
+    const failedJobs = (db.prepare("SELECT COUNT(*) as count FROM jobs WHERE status IN ('failed', 'failed_permanent')").get() as any)?.count ?? 0;
+    const revenueRow = db.prepare("SELECT COALESCE(SUM(total_price), 0) as total FROM jobs WHERE status = 'completed'").get() as any;
+    const totalRevenue = revenueRow?.total ?? 0;
+    const pagesRow = db.prepare("SELECT COALESCE(SUM(page_count), 0) as total FROM jobs WHERE status = 'completed'").get() as any;
+    const totalPages = pagesRow?.total ?? 0;
+    const avgJobPrice = completedJobs > 0 ? Math.round(totalRevenue / completedJobs) : 0;
+
+    // Daily stats (last 30 days)
+    const daily = db.prepare(
+      `SELECT DATE(created_at) as date,
+              COUNT(*) as jobs,
+              COALESCE(SUM(CASE WHEN status = 'completed' THEN total_price ELSE 0 END), 0) as revenue,
+              COALESCE(SUM(page_count), 0) as pages
+       FROM jobs
+       WHERE created_at >= datetime('now', '-30 days')
+       GROUP BY DATE(created_at)
+       ORDER BY date`
+    ).all() as any[];
+
+    // Hourly distribution (all time)
+    const hourly = db.prepare(
+      `SELECT CAST(strftime('%H', created_at) AS INTEGER) as hour, COUNT(*) as jobs
+       FROM jobs
+       GROUP BY hour
+       ORDER BY hour`
+    ).all() as any[];
+
+    // Fill missing hours with 0
+    const hourlyMap = new Map(hourly.map((h: any) => [h.hour, h.jobs]));
+    const hourlyFull = Array.from({ length: 24 }, (_, i) => ({
+      hour: i,
+      jobs: hourlyMap.get(i) ?? 0,
+    }));
+
+    // Status breakdown
+    const statusBreakdown = db.prepare(
+      'SELECT status, COUNT(*) as count FROM jobs GROUP BY status ORDER BY count DESC'
+    ).all() as any[];
+
+    // Payment type breakdown
+    const paymentTypeBreakdown = db.prepare(
+      `SELECT payment_type as type, COUNT(*) as count, COALESCE(SUM(amount), 0) as amount
+       FROM payments
+       WHERE status = 'captured'
+       GROUP BY payment_type`
+    ).all() as any[];
+
+    res.json({
+      summary: { totalJobs, completedJobs, failedJobs, totalRevenue, totalPages, avgJobPrice },
+      daily,
+      hourly: hourlyFull,
+      statusBreakdown,
+      paymentTypeBreakdown,
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Analytics fetch failed');
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
 // --- System Health ---
 
 adminRouter.get('/health', async (_req: Request, res: Response) => {
