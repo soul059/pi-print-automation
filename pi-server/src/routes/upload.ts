@@ -51,6 +51,12 @@ uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthReque
       }
     }
 
+    // Validate page range format early (prevent injection downstream)
+    if (config.pageRange && !/^[\d,\- ]+$/.test(config.pageRange)) {
+      res.status(400).json({ error: 'Invalid page range format. Use digits, commas, and dashes only (e.g., "1-5,8,11-13")' });
+      return;
+    }
+
     // Validate PDF
     const validation = await validatePdf(req.file.path);
     if (!validation.valid) {

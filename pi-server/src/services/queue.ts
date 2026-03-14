@@ -1,5 +1,6 @@
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
+import { transitionJob, getJob } from '../models/job';
 import * as cups from './cups';
 import * as pdf from './pdf';
 
@@ -8,6 +9,7 @@ const RETRY_DELAY_MS = 5000;
 
 interface QueuedJob {
   id: string;
+  status: string;
   file_path: string;
   user_name: string;
   user_email: string;
@@ -56,8 +58,12 @@ async function processJob(jobId: string): Promise<void> {
     return;
   }
 
-  // Update status to printing
-  db.prepare("UPDATE jobs SET status = 'printing', updated_at = datetime('now') WHERE id = ?").run(jobId);
+  // Use state machine to transition — prevents duplicate processing
+  const transitioned = transitionJob(jobId, 'printing');
+  if (!transitioned) {
+    logger.warn({ jobId, status: job.status }, 'Job cannot transition to printing, skipping');
+    return;
+  }
 
   try {
     // Append identity page
@@ -113,12 +119,17 @@ export function startJobRecovery(): void {
   const db = getDb();
   // Recover paid jobs that were interrupted (e.g., server restart)
   const stuckJobs = db
-    .prepare("SELECT id FROM jobs WHERE status IN ('paid', 'printing') ORDER BY created_at ASC")
-    .all() as Array<{ id: string }>;
+    .prepare("SELECT id, status FROM jobs WHERE status IN ('paid', 'printing') ORDER BY created_at ASC")
+    .all() as Array<{ id: string; status: string }>;
 
   if (stuckJobs.length > 0) {
     logger.info({ count: stuckJobs.length }, 'Recovering interrupted jobs');
     for (const job of stuckJobs) {
+      // Reset printing → failed so the state machine can transition paid → printing again
+      if (job.status === 'printing') {
+        transitionJob(job.id, 'failed', 'Server restarted during printing');
+        transitionJob(job.id, 'paid');
+      }
       enqueueJob(job.id);
     }
   }

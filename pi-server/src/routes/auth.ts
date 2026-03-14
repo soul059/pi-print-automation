@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { OAuth2Client } from 'google-auth-library';
 import { validateEmail } from '../services/policy';
 import { generateOtp, sendOtp, verifyOtp } from '../services/email';
@@ -8,6 +9,24 @@ import { z } from 'zod';
 import { logger } from '../config/logger';
 
 export const authRouter = Router();
+
+// Rate limiters for OTP endpoints
+const otpSendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 OTP requests per email per window
+  keyGenerator: (req) => req.body?.email || req.ip || 'unknown',
+  message: { error: 'Too many OTP requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10, // 10 verification attempts per IP per window
+  message: { error: 'Too many verification attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Google OAuth client (lazy-initialized)
 let googleClient: OAuth2Client | null = null;
@@ -89,7 +108,7 @@ const verifyOtpSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
-authRouter.post('/validate-email', async (req: Request, res: Response) => {
+authRouter.post('/validate-email', otpSendLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = validateEmailSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -121,7 +140,7 @@ authRouter.post('/validate-email', async (req: Request, res: Response) => {
   }
 });
 
-authRouter.post('/verify-otp', (req: Request, res: Response) => {
+authRouter.post('/verify-otp', otpVerifyLimiter, (req: Request, res: Response) => {
   const parsed = verifyOtpSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ verified: false, reason: 'Invalid request body' });

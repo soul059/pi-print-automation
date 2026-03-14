@@ -27,7 +27,12 @@ const io = new SocketServer(httpServer, {
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN }));
-app.use(express.json());
+// Capture raw body for webhook signature verification
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 
 // Health check
 app.get('/health', (_req, res) => {

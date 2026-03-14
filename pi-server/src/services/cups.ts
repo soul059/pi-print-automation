@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -27,6 +27,40 @@ function execAsync(cmd: string): Promise<string> {
       }
     });
   });
+}
+
+function execFileAsync(cmd: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { timeout: 10000 }, (err, stdout, stderr) => {
+      if (err) {
+        reject(new Error(stderr || err.message));
+      } else {
+        resolve(stdout.trim());
+      }
+    });
+  });
+}
+
+// Strict validation for CUPS option values to prevent command injection
+function sanitizePageRange(value: string): string {
+  if (!/^[\d,\- ]+$/.test(value)) {
+    throw new Error('Invalid page range format');
+  }
+  return value.replace(/\s/g, '');
+}
+
+function sanitizePaperSize(value: string): string {
+  if (!/^[A-Za-z0-9]+$/.test(value)) {
+    throw new Error('Invalid paper size format');
+  }
+  return value;
+}
+
+function sanitizePrinterName(value: string): string {
+  if (!/^[A-Za-z0-9_\-]+$/.test(value)) {
+    throw new Error('Invalid printer name format');
+  }
+  return value;
 }
 
 export async function getDefaultPrinter(): Promise<string> {
@@ -90,26 +124,34 @@ export async function printFile(
   printerName: string,
   options: PrintOptions
 ): Promise<string> {
-  const cupsOptions: string[] = [];
+  const safePrinter = sanitizePrinterName(printerName);
+  const args: string[] = ['-d', safePrinter];
 
-  if (options.pageRange) cupsOptions.push(`-o page-ranges=${options.pageRange}`);
-  if (options.paperSize) cupsOptions.push(`-o media=${options.paperSize}`);
-  if (options.copies && options.copies > 1) cupsOptions.push(`-n ${options.copies}`);
+  if (options.pageRange) {
+    args.push('-o', `page-ranges=${sanitizePageRange(options.pageRange)}`);
+  }
+  if (options.paperSize) {
+    args.push('-o', `media=${sanitizePaperSize(options.paperSize)}`);
+  }
+  if (options.copies && options.copies > 1) {
+    args.push('-n', String(Math.floor(options.copies)));
+  }
   if (options.duplex) {
-    cupsOptions.push('-o sides=two-sided-long-edge');
+    args.push('-o', 'sides=two-sided-long-edge');
   } else {
-    cupsOptions.push('-o sides=one-sided');
+    args.push('-o', 'sides=one-sided');
   }
   if (options.color === 'color') {
-    cupsOptions.push('-o ColorModel=Color');
+    args.push('-o', 'ColorModel=Color');
   } else {
-    cupsOptions.push('-o ColorModel=Gray');
+    args.push('-o', 'ColorModel=Gray');
   }
 
-  const cmd = `lp -d ${printerName} ${cupsOptions.join(' ')} "${filePath}"`;
-  logger.info({ cmd }, 'Sending print job to CUPS');
+  args.push('--', filePath);
 
-  const output = await execAsync(cmd);
+  logger.info({ cmd: 'lp', args }, 'Sending print job to CUPS');
+
+  const output = await execFileAsync('lp', args);
   // lp returns something like "request id is myprinter-123 (1 file(s))"
   const match = output.match(/request id is (\S+)/);
   return match ? match[1] : output;

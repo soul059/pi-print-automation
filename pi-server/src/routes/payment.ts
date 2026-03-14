@@ -165,7 +165,11 @@ paymentRouter.post('/verify', requireAuth, async (req: AuthRequest, res: Respons
 // Razorpay webhook (primary verification path)
 paymentRouter.post('/webhook', async (req: Request, res: Response) => {
   try {
-    const webhookBody = JSON.stringify(req.body);
+    const rawBody = (req as any).rawBody as Buffer;
+    if (!rawBody) {
+      res.status(400).json({ error: 'Missing raw body for signature verification' });
+      return;
+    }
     const receivedSignature = req.headers['x-razorpay-signature'] as string;
 
     if (!receivedSignature) {
@@ -176,7 +180,7 @@ paymentRouter.post('/webhook', async (req: Request, res: Response) => {
     // Verify webhook signature
     const expectedSignature = crypto
       .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
-      .update(webhookBody)
+      .update(rawBody)
       .digest('hex');
 
     if (expectedSignature !== receivedSignature) {
@@ -221,9 +225,11 @@ paymentRouter.post('/webhook', async (req: Request, res: Response) => {
       // Transition job and enqueue
       const job = getJob(payment.job_id);
       if (job && (job.status === 'payment_pending' || job.status === 'uploaded')) {
-        transitionJob(payment.job_id, 'paid');
-        enqueueJob(payment.job_id);
-        logger.info({ jobId: payment.job_id }, 'Webhook: payment verified, job enqueued');
+        const transitioned = transitionJob(payment.job_id, 'paid');
+        if (transitioned) {
+          enqueueJob(payment.job_id);
+          logger.info({ jobId: payment.job_id }, 'Webhook: payment verified, job enqueued');
+        }
       }
     }
 

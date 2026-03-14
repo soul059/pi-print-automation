@@ -65,12 +65,12 @@ export function setupPrinterStatusBroadcast(io: SocketServer): void {
       if (subscriberCount === 0) stopPolling();
     });
 
-    socket.on('disconnect', () => {
-      // Check if this socket was in the printer-status room
+    socket.on('disconnecting', () => {
+      // 'disconnecting' fires before rooms are cleared (unlike 'disconnect')
       if (socket.rooms.has('printer-status')) {
         subscriberCount = Math.max(0, subscriberCount - 1);
       }
-      logger.debug({ socketId: socket.id, subscriberCount }, 'Client disconnected');
+      logger.debug({ socketId: socket.id, subscriberCount }, 'Client disconnecting');
       if (subscriberCount === 0) stopPolling();
     });
   });
