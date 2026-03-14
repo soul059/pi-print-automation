@@ -7,7 +7,17 @@ function getHeaders(token?: string): HeadersInit {
 }
 
 export const api = {
-  // Auth
+  // Auth - Google
+  async googleAuth(credential: string) {
+    const res = await fetch(`${API_BASE}/api/auth/google`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ credential }),
+    });
+    return res.json();
+  },
+
+  // Auth - OTP
   async validateEmail(email: string, name: string) {
     const res = await fetch(`${API_BASE}/api/auth/validate-email`, {
       method: 'POST',

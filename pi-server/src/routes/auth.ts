@@ -1,11 +1,82 @@
 import { Router, Request, Response } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 import { validateEmail } from '../services/policy';
 import { generateOtp, sendOtp, verifyOtp } from '../services/email';
 import { generateToken } from '../middleware/auth';
+import { env } from '../config/env';
 import { z } from 'zod';
 import { logger } from '../config/logger';
 
 export const authRouter = Router();
+
+// Google OAuth client (lazy-initialized)
+let googleClient: OAuth2Client | null = null;
+function getGoogleClient(): OAuth2Client {
+  if (!googleClient) {
+    googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+  }
+  return googleClient;
+}
+
+// --- Google Sign-In ---
+
+authRouter.post('/google', async (req: Request, res: Response) => {
+  const { credential } = req.body;
+  if (!credential) {
+    res.status(400).json({ error: 'Missing Google credential token' });
+    return;
+  }
+
+  if (!env.GOOGLE_CLIENT_ID) {
+    res.status(500).json({ error: 'Google Sign-In not configured on server' });
+    return;
+  }
+
+  try {
+    const client = getGoogleClient();
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email || !payload.email_verified) {
+      res.status(401).json({ error: 'Invalid or unverified Google account' });
+      return;
+    }
+
+    const email = payload.email.toLowerCase();
+    const name = payload.name || email.split('@')[0];
+
+    // Validate email against policies
+    const policyResult = validateEmail(email);
+    if (!policyResult.valid) {
+      res.status(403).json({
+        error: 'Email not authorized',
+        reason: policyResult.reason,
+        email,
+      });
+      return;
+    }
+
+    const token = generateToken(email, name);
+    logger.info({ email, method: 'google' }, 'User authenticated via Google');
+
+    res.json({
+      token,
+      email,
+      name,
+      department: policyResult.department,
+      year: policyResult.year,
+      picture: payload.picture || null,
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Google auth verification failed');
+    res.status(401).json({ error: 'Google authentication failed' });
+  }
+});
+
+// --- OTP Flow (fallback) ---
 
 const validateEmailSchema = z.object({
   email: z.string().email(),

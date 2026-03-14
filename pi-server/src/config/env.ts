@@ -42,9 +42,12 @@ export const env = {
   // Security
   OTP_EXPIRY_MINUTES: parseInt(process.env.OTP_EXPIRY_MINUTES || '5', 10),
   JWT_SECRET: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  JWT_EXPIRY: process.env.JWT_EXPIRY || '7d',
+  JWT_EXPIRY: process.env.JWT_EXPIRY || '30d',
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
 
   // Cleanup
   FILE_RETENTION_HOURS: parseInt(process.env.FILE_RETENTION_HOURS || '24', 10),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
 } as const;
