@@ -16,41 +16,46 @@ export const adminRouter = Router();
 // --- Admin Login (public, no auth required) ---
 
 adminRouter.post('/login', async (req: Request, res: Response) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    res.status(400).json({ error: 'Username and password required' });
-    return;
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      res.status(400).json({ error: 'Username and password required' });
+      return;
+    }
+
+    const db = getDb();
+    const admin = db.prepare('SELECT * FROM admins WHERE username = ? AND active = 1').get(username) as any;
+
+    if (!admin) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, admin.password_hash);
+    if (!valid) {
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    // Update last login
+    db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(admin.id);
+
+    const token = generateAdminToken(admin.id, admin.username, admin.role);
+    logger.info({ username }, 'Admin login successful');
+
+    res.json({
+      token,
+      admin: {
+        id: admin.id,
+        username: admin.username,
+        displayName: admin.display_name,
+        role: admin.role,
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Admin login error');
+    res.status(500).json({ error: 'Login failed' });
   }
-
-  const db = getDb();
-  const admin = db.prepare('SELECT * FROM admins WHERE username = ? AND active = 1').get(username) as any;
-
-  if (!admin) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
-  }
-
-  const valid = await bcrypt.compare(password, admin.password_hash);
-  if (!valid) {
-    res.status(401).json({ error: 'Invalid credentials' });
-    return;
-  }
-
-  // Update last login
-  db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(admin.id);
-
-  const token = generateAdminToken(admin.id, admin.username, admin.role);
-  logger.info({ username }, 'Admin login successful');
-
-  res.json({
-    token,
-    admin: {
-      id: admin.id,
-      username: admin.username,
-      displayName: admin.display_name,
-      role: admin.role,
-    },
-  });
 });
 
 // All routes below require admin auth

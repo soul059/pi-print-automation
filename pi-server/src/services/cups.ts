@@ -1,4 +1,4 @@
-import { exec, execFile } from 'child_process';
+import { execFile } from 'child_process';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -15,18 +15,6 @@ export interface PrintOptions {
   copies?: number;
   duplex?: boolean;
   color?: 'grayscale' | 'color';
-}
-
-function execAsync(cmd: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { timeout: 10000 }, (err, stdout, stderr) => {
-      if (err) {
-        reject(new Error(stderr || err.message));
-      } else {
-        resolve(stdout.trim());
-      }
-    });
-  });
 }
 
 function execFileAsync(cmd: string, args: string[]): Promise<string> {
@@ -67,7 +55,7 @@ export async function getDefaultPrinter(): Promise<string> {
   if (env.DEFAULT_PRINTER) return env.DEFAULT_PRINTER;
 
   try {
-    const output = await execAsync('lpstat -d');
+    const output = await execFileAsync('lpstat', ['-d']);
     const match = output.match(/system default destination:\s*(.+)/);
     return match ? match[1].trim() : '';
   } catch {
@@ -77,7 +65,7 @@ export async function getDefaultPrinter(): Promise<string> {
 
 export async function listPrinters(): Promise<string[]> {
   try {
-    const output = await execAsync('lpstat -p');
+    const output = await execFileAsync('lpstat', ['-p']);
     const printers = output
       .split('\n')
       .filter((l) => l.startsWith('printer'))
@@ -94,15 +82,17 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
     return { online: false, status: 'unknown', accepting: false, printerName: '' };
   }
 
+  const safeName = sanitizePrinterName(name);
+
   try {
-    const output = await execAsync(`lpstat -p ${name}`);
+    const output = await execFileAsync('lpstat', ['-p', safeName]);
     const isIdle = output.includes('idle');
     const isPrinting = output.includes('printing');
     const isStopped = output.includes('stopped') || output.includes('disabled');
 
     let accepting = false;
     try {
-      const acceptOutput = await execAsync(`lpstat -a ${name}`);
+      const acceptOutput = await execFileAsync('lpstat', ['-a', safeName]);
       accepting = acceptOutput.includes('accepting');
     } catch {
       accepting = !isStopped;
@@ -112,10 +102,10 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
       online: !isStopped,
       status: isStopped ? 'stopped' : isPrinting ? 'printing' : isIdle ? 'idle' : 'unknown',
       accepting,
-      printerName: name,
+      printerName: safeName,
     };
   } catch {
-    return { online: false, status: 'unknown', accepting: false, printerName: name };
+    return { online: false, status: 'unknown', accepting: false, printerName: safeName };
   }
 }
 
@@ -157,14 +147,22 @@ export async function printFile(
   return match ? match[1] : output;
 }
 
+function sanitizeCupsJobId(value: string): string {
+  // CUPS job IDs are like "PrinterName-123"
+  if (!/^[A-Za-z0-9_\-]+$/.test(value)) {
+    throw new Error('Invalid CUPS job ID format');
+  }
+  return value;
+}
+
 export async function cancelJob(cupsJobId: string): Promise<void> {
-  await execAsync(`cancel ${cupsJobId}`);
+  await execFileAsync('cancel', [sanitizeCupsJobId(cupsJobId)]);
 }
 
 export async function getJobStatus(cupsJobId: string): Promise<string> {
   try {
-    const output = await execAsync(`lpstat -o`);
-    if (output.includes(cupsJobId)) return 'printing';
+    const output = await execFileAsync('lpstat', ['-o']);
+    if (output.includes(sanitizeCupsJobId(cupsJobId))) return 'printing';
     return 'completed';
   } catch {
     return 'unknown';
@@ -173,7 +171,7 @@ export async function getJobStatus(cupsJobId: string): Promise<string> {
 
 export async function getPrinterCapabilities(printerName: string): Promise<Record<string, string>> {
   try {
-    const output = await execAsync(`lpoptions -p ${printerName} -l`);
+    const output = await execFileAsync('lpoptions', ['-p', sanitizePrinterName(printerName), '-l']);
     const caps: Record<string, string> = {};
     for (const line of output.split('\n')) {
       const match = line.match(/^(\S+?)\/(.+?):\s*(.+)$/);

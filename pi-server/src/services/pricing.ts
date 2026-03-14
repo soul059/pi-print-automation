@@ -13,7 +13,7 @@ export interface PriceCalculation {
 export function parsePageRange(range: string | undefined, totalPages: number): number {
   if (!range || range.trim() === '') return totalPages;
 
-  let count = 0;
+  const pages = new Set<number>();
   const parts = range.split(',');
 
   for (const part of parts) {
@@ -23,17 +23,17 @@ export function parsePageRange(range: string | undefined, totalPages: number): n
       const start = parseInt(startStr, 10);
       const end = Math.min(parseInt(endStr, 10), totalPages);
       if (!isNaN(start) && !isNaN(end) && start <= end) {
-        count += end - start + 1;
+        for (let i = start; i <= end; i++) pages.add(i);
       }
     } else {
       const page = parseInt(trimmed, 10);
       if (!isNaN(page) && page >= 1 && page <= totalPages) {
-        count += 1;
+        pages.add(page);
       }
     }
   }
 
-  return count || totalPages;
+  return pages.size || totalPages;
 }
 
 export function calculatePrice(

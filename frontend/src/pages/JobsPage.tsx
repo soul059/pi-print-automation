@@ -18,19 +18,41 @@ export default function JobsPage() {
   const { token } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    api.getJobs(token).then((data) => {
-      setJobs(data.jobs || []);
-      setLoading(false);
-    });
+    api.getJobs(token)
+      .then((data) => {
+        setJobs(data.jobs || []);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to load jobs');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [token]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <Loader2 size={32} className="animate-spin text-primary-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 font-medium mb-2">Failed to load jobs</p>
+        <p className="text-gray-500 text-sm">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 text-primary-600 text-sm hover:underline"
+        >
+          Try again
+        </button>
       </div>
     );
   }
