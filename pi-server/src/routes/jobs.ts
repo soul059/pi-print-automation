@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { getJob, getJobsByEmail } from '../models/job';
 import { getDb } from '../db/connection';
+import { getQueuePosition } from '../services/queue';
 
 export const jobsRouter = Router();
 
@@ -56,6 +57,7 @@ jobsRouter.get('/:jobId', requireAuth, (req: AuthRequest, res: Response) => {
     errorMessage: job.error_message,
     refundStatus: payment?.refund_status || null,
     refundId: payment?.refund_id || null,
+    queuePosition: (job.status === 'paid' || job.status === 'printing') ? getQueuePosition(job.id) : null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   });

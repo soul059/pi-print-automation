@@ -1,9 +1,10 @@
 import { Server as SocketServer } from 'socket.io';
 import { getPrinterStatus } from './cups';
-import { getQueueDepth, getEstimatedWaitMinutes } from './queue';
+import { getQueueDepth, getEstimatedWaitMinutes, getQueuedJobIds } from './queue';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 
+let ioInstance: SocketServer | null = null;
 let lastStatus: any = null;
 let consecutiveErrors = 0;
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -47,7 +48,19 @@ function stopPolling(): void {
   lastStatus = null;
 }
 
+export function broadcastQueueUpdate(): void {
+  if (!ioInstance) return;
+  const queuedJobs = getQueuedJobIds();
+  const depth = getQueueDepth();
+  ioInstance.to('queue-status').emit('queue:update', {
+    queue: queuedJobs,
+    depth,
+    estimatedWait: getEstimatedWaitMinutes(),
+  });
+}
+
 export function setupPrinterStatusBroadcast(io: SocketServer): void {
+  ioInstance = io;
   io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id }, 'Client connected');
 
@@ -63,6 +76,16 @@ export function setupPrinterStatusBroadcast(io: SocketServer): void {
       subscriberCount = Math.max(0, subscriberCount - 1);
       logger.debug({ socketId: socket.id, subscriberCount }, 'Client unsubscribed from printer status');
       if (subscriberCount === 0) stopPolling();
+    });
+
+    socket.on('subscribe:queue-status', () => {
+      socket.join('queue-status');
+      logger.debug({ socketId: socket.id }, 'Client subscribed to queue status');
+    });
+
+    socket.on('unsubscribe:queue-status', () => {
+      socket.leave('queue-status');
+      logger.debug({ socketId: socket.id }, 'Client unsubscribed from queue status');
     });
 
     socket.on('disconnecting', () => {

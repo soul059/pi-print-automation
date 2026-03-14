@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useQueuePosition } from '../hooks/useQueuePosition';
 import { api } from '../services/api';
 import {
   Loader2,
@@ -63,6 +64,9 @@ export default function StatusPage() {
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const isQueued = job?.status === 'paid' || job?.status === 'printing';
+  const { position, estimatedWait } = useQueuePosition(jobId, isQueued);
+
   const fetchJob = useCallback(async () => {
     if (!jobId || !token) return;
     try {
@@ -111,6 +115,17 @@ export default function StatusPage() {
         <div className={statusInfo.color}>{statusInfo.icon}</div>
         <h1 className="text-2xl font-bold">{statusInfo.label}</h1>
         <p className="text-gray-500">{statusInfo.description}</p>
+
+        {isQueued && position !== null && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-blue-800">
+              🕐 You are #{position} in queue · {estimatedWait}
+            </p>
+            <div className="mt-2 w-full bg-blue-200 rounded-full h-1.5">
+              <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
+            </div>
+          </div>
+        )}
 
         {job.refundStatus === 'refunded' && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">

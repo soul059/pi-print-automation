@@ -5,6 +5,7 @@ import * as cups from './cups';
 import * as pdf from './pdf';
 import { processRefund } from './refund';
 import { notifyJobCompleted, notifyJobFailed } from './notification';
+import { broadcastQueueUpdate } from './printerStatus';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
@@ -31,6 +32,7 @@ const queue: string[] = []; // job IDs
 export function enqueueJob(jobId: string): void {
   queue.push(jobId);
   logger.info({ jobId, queueDepth: queue.length }, 'Job enqueued');
+  broadcastQueueUpdate();
   processNext();
 }
 
@@ -39,6 +41,7 @@ async function processNext(): Promise<void> {
 
   processing = true;
   const jobId = queue.shift()!;
+  broadcastQueueUpdate();
 
   try {
     await processJob(jobId);
@@ -46,6 +49,7 @@ async function processNext(): Promise<void> {
     logger.error({ jobId, err: err.message }, 'Job processing failed');
   } finally {
     processing = false;
+    broadcastQueueUpdate();
     if (queue.length > 0) {
       processNext();
     }
@@ -162,4 +166,14 @@ export function getQueueDepth(): number {
 export function getEstimatedWaitMinutes(): number {
   const avgJobSeconds = 30; // rough estimate
   return Math.ceil((getQueueDepth() * avgJobSeconds) / 60);
+}
+
+export function getQueuePosition(jobId: string): number | null {
+  const idx = queue.indexOf(jobId);
+  if (idx >= 0) return idx + 1;
+  return null;
+}
+
+export function getQueuedJobIds(): string[] {
+  return [...queue];
 }
