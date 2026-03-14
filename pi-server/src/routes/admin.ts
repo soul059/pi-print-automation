@@ -211,6 +211,100 @@ adminRouter.post('/jobs/:jobId/refund', async (req: Request<{jobId: string}>, re
   }
 });
 
+// --- Announcements ---
+
+adminRouter.get('/announcements', (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const announcements = db.prepare('SELECT * FROM announcements ORDER BY id DESC').all();
+    res.json({ announcements });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to fetch announcements');
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+adminRouter.post('/announcements', (req: Request, res: Response) => {
+  try {
+    const { message, type } = req.body;
+    if (!message) {
+      res.status(400).json({ error: 'Message is required' });
+      return;
+    }
+    const announcementType = type || 'info';
+    if (!['info', 'warning', 'critical'].includes(announcementType)) {
+      res.status(400).json({ error: 'Type must be info, warning, or critical' });
+      return;
+    }
+    const db = getDb();
+    const result = db
+      .prepare('INSERT INTO announcements (message, type) VALUES (?, ?)')
+      .run(message, announcementType);
+    const announcement = db.prepare('SELECT * FROM announcements WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ announcement });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to create announcement');
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+});
+
+adminRouter.put('/announcements/:id', (req: Request<{id: string}>, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid announcement ID' });
+      return;
+    }
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
+    if (!existing) {
+      res.status(404).json({ error: 'Announcement not found' });
+      return;
+    }
+    const { message, type, active } = req.body;
+    if (type && !['info', 'warning', 'critical'].includes(type)) {
+      res.status(400).json({ error: 'Type must be info, warning, or critical' });
+      return;
+    }
+    const updates: string[] = [];
+    const values: any[] = [];
+    if (message !== undefined) { updates.push('message = ?'); values.push(message); }
+    if (type !== undefined) { updates.push('type = ?'); values.push(type); }
+    if (active !== undefined) { updates.push('active = ?'); values.push(active ? 1 : 0); }
+    if (updates.length > 0) {
+      updates.push("updated_at = datetime('now')");
+      values.push(id);
+      db.prepare(`UPDATE announcements SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    }
+    const announcement = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
+    res.json({ announcement });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to update announcement');
+    res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
+adminRouter.delete('/announcements/:id', (req: Request<{id: string}>, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid announcement ID' });
+      return;
+    }
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM announcements WHERE id = ?').get(id);
+    if (!existing) {
+      res.status(404).json({ error: 'Announcement not found' });
+      return;
+    }
+    db.prepare('DELETE FROM announcements WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to delete announcement');
+    res.status(500).json({ error: 'Failed to delete announcement' });
+  }
+});
+
 // --- Analytics ---
 
 adminRouter.get('/analytics', (req: Request, res: Response) => {

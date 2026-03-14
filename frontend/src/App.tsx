@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { AdminProvider, useAdmin } from './hooks/useAdmin';
 import Layout from './components/Layout';
+import AnnouncementBanner from './components/AnnouncementBanner';
 import LoginPage from './pages/LoginPage';
 import UploadPage from './pages/UploadPage';
 import PaymentPage from './pages/PaymentPage';
@@ -11,6 +12,7 @@ import WalletPage from './pages/WalletPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AnalyticsPage from './pages/admin/AnalyticsPage';
+import AnnouncementsPage from './pages/admin/AnnouncementsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -29,6 +31,7 @@ export default function App() {
     <AuthProvider>
       <AdminProvider>
         <Layout>
+          <AnnouncementBanner />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
@@ -86,6 +89,14 @@ export default function App() {
               element={
                 <AdminRoute>
                   <AnalyticsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/announcements"
+              element={
+                <AdminRoute>
+                  <AnnouncementsPage />
                 </AdminRoute>
               }
             />

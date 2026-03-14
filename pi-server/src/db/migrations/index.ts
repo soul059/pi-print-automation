@@ -167,4 +167,17 @@ const migrations = [
       `ALTER TABLE payments ADD COLUMN payment_type TEXT NOT NULL DEFAULT 'razorpay'`,
     ],
   },
+  {
+    name: '006_announcements',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS announcements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'info',
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
 ];

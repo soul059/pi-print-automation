@@ -12,6 +12,7 @@ import { authRouter } from './routes/auth';
 import { adminRouter } from './routes/admin';
 import { jobsRouter } from './routes/jobs';
 import { walletRouter } from './routes/wallet';
+import { announcementsRouter } from './routes/announcements';
 import { errorHandler } from './middleware/errorHandler';
 import { setupPrinterStatusBroadcast } from './services/printerStatus';
 
@@ -52,6 +53,7 @@ app.use('/api/printer', printerRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/wallet', walletRouter);
+app.use('/api/announcements', announcementsRouter);
 
 // Error handler
 app.use(errorHandler);

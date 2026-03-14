@@ -194,6 +194,46 @@ export const api = {
     return res.json();
   },
 
+  // Announcements (public)
+  async getActiveAnnouncement() {
+    const res = await fetch(`${API_BASE}/api/announcements`);
+    return res.json();
+  },
+
+  // Announcements (admin)
+  async adminGetAnnouncements(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/announcements`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminCreateAnnouncement(message: string, type: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/announcements`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ message, type }),
+    });
+    return res.json();
+  },
+
+  async adminUpdateAnnouncement(id: number, data: { message?: string; type?: string; active?: boolean }, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/announcements/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async adminDeleteAnnouncement(id: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/announcements/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
   // Wallet
   async getWallet(token: string) {
     const res = await fetch(`${API_BASE}/api/wallet`, {
