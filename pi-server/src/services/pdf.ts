@@ -1,7 +1,9 @@
 import fs from 'fs';
+import path from 'path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { logger } from '../config/logger';
+import { env } from '../config/env';
 
 export async function getPageCount(filePath: string): Promise<number> {
   const bytes = fs.readFileSync(filePath);
@@ -29,6 +31,29 @@ export async function validatePdf(filePath: string): Promise<{ valid: boolean; e
     logger.error({ err: err.message }, 'PDF validation failed');
     return { valid: false, error: 'Failed to parse PDF file' };
   }
+}
+
+export async function mergePdfs(filePaths: string[]): Promise<{ mergedPath: string; totalPages: number }> {
+  const mergedPdf = await PDFDocument.create();
+  let totalPages = 0;
+
+  for (const filePath of filePaths) {
+    const bytes = fs.readFileSync(filePath);
+    const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+    for (const page of pages) {
+      mergedPdf.addPage(page);
+    }
+    totalPages += pdf.getPageCount();
+  }
+
+  const mergedFileName = `merged_${Date.now()}.pdf`;
+  const mergedPath = path.join(env.UPLOAD_DIR, mergedFileName);
+  const mergedBytes = await mergedPdf.save();
+  fs.writeFileSync(mergedPath, mergedBytes);
+
+  logger.info({ mergedPath, totalPages, fileCount: filePaths.length }, 'PDFs merged');
+  return { mergedPath, totalPages };
 }
 
 export interface IdentityPageData {

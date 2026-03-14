@@ -10,21 +10,24 @@ import {
   Loader2,
   Settings,
   CreditCard,
+  X,
 } from 'lucide-react';
 
 const PAPER_SIZES = ['A4', 'Letter', 'Legal', 'A3', 'A5'];
+const MAX_FILES = 10;
+const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
 
 export default function UploadPage() {
   const { token } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Only connect to printer status after file is selected
-  const { status } = usePrinterStatus(!!file);
+  // Only connect to printer status after files are selected
+  const { status } = usePrinterStatus(files.length > 0);
 
   // Print options
   const [pageRange, setPageRange] = useState('');
@@ -35,26 +38,44 @@ export default function UploadPage() {
   const [printMode, setPrintMode] = useState<'now' | 'later'>('now');
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
+    const selected = Array.from(e.target.files || []);
+    if (!selected.length) return;
 
-    if (selected.type !== 'application/pdf') {
-      setError('Only PDF files are allowed');
+    const combined = [...files, ...selected];
+
+    if (combined.length > MAX_FILES) {
+      setError(`Maximum ${MAX_FILES} files allowed`);
       return;
     }
 
-    if (selected.size > 10 * 1024 * 1024) {
-      setError('File size must be under 10 MB');
+    for (const f of selected) {
+      if (f.type !== 'application/pdf') {
+        setError(`"${f.name}" is not a PDF file`);
+        return;
+      }
+    }
+
+    const totalSize = combined.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      setError('Total file size must be under 50 MB');
       return;
     }
 
-    setFile(selected);
+    setFiles(combined);
     setError('');
+    // Reset input so the same file(s) can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !token) return;
+    if (files.length === 0 || !token) return;
 
     setLoading(true);
     setError('');
@@ -69,7 +90,7 @@ export default function UploadPage() {
         printMode,
       };
 
-      const result = await api.uploadFile(file, config, token);
+      const result = await api.uploadFile(files, config, token);
 
       if (result.error) {
         setError(result.error);
@@ -94,14 +115,14 @@ export default function UploadPage() {
         <h1 className="text-2xl font-bold">Print a Document</h1>
       </div>
 
-      <PrinterStatusBadge enabled={!!file} />
+      <PrinterStatusBadge enabled={files.length > 0} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* File Upload */}
         <div
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition ${
-            file
+            files.length > 0
               ? 'border-primary-300 bg-primary-50'
               : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
           }`}
@@ -110,30 +131,46 @@ export default function UploadPage() {
             ref={fileInputRef}
             type="file"
             accept=".pdf,application/pdf"
+            multiple
             onChange={handleFileSelect}
             className="hidden"
           />
-          {file ? (
-            <div className="flex items-center justify-center gap-3">
-              <FileText size={24} className="text-primary-600" />
-              <div className="text-left">
-                <p className="font-medium text-primary-700">{file.name}</p>
-                <p className="text-sm text-gray-500">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              </div>
+          {files.length > 0 ? (
+            <div className="space-y-2">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 bg-white rounded-lg px-3 py-2 border">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText size={18} className="text-primary-600 shrink-0" />
+                    <span className="text-sm font-medium text-primary-700 truncate">{f.name}</span>
+                    <span className="text-xs text-gray-400 shrink-0">
+                      {(f.size / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                    className="text-gray-400 hover:text-red-500 transition shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+              <p className="text-xs text-gray-500 mt-2">
+                {files.length} file{files.length > 1 ? 's' : ''} · {(totalSize / 1024 / 1024).toFixed(2)} MB total
+                {files.length < MAX_FILES && ' · Click to add more'}
+              </p>
             </div>
           ) : (
             <div>
               <Upload size={32} className="mx-auto mb-2 text-gray-400" />
-              <p className="font-medium text-gray-600">Click to upload PDF</p>
-              <p className="text-sm text-gray-400 mt-1">Max 10 MB</p>
+              <p className="font-medium text-gray-600">Click to upload PDFs</p>
+              <p className="text-sm text-gray-400 mt-1">Max {MAX_FILES} files, 50 MB total</p>
             </div>
           )}
         </div>
 
         {/* Print Options */}
-        {file && (
+        {files.length > 0 && (
           <div className="bg-white rounded-xl border p-6 space-y-5">
             <div className="flex items-center gap-2 mb-4">
               <Settings size={20} className="text-gray-500" />
@@ -279,7 +316,7 @@ export default function UploadPage() {
         )}
 
         {/* Submit */}
-        {file && (
+        {files.length > 0 && (
           <button
             type="submit"
             disabled={loading || !status?.online}

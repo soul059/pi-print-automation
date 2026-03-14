@@ -42,9 +42,12 @@ export const api = {
   },
 
   // Upload
-  async uploadFile(file: File, config: Record<string, unknown>, token: string) {
+  async uploadFile(files: File | File[], config: Record<string, unknown>, token: string) {
     const formData = new FormData();
-    formData.append('file', file);
+    const fileArray = Array.isArray(files) ? files : [files];
+    for (const file of fileArray) {
+      formData.append('files', file);
+    }
     formData.append('config', JSON.stringify(config));
 
     const res = await fetch(`${API_BASE}/api/upload`, {

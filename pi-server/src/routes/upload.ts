@@ -5,7 +5,7 @@ import fs from 'fs';
 import { nanoid } from 'nanoid';
 import { env } from '../config/env';
 import { requireAuth, AuthRequest, verifyToken } from '../middleware/auth';
-import { validatePdf, getPageCount } from '../services/pdf';
+import { validatePdf, getPageCount, mergePdfs } from '../services/pdf';
 import { calculatePrice } from '../services/pricing';
 import { createJob, getJob } from '../models/job';
 import { logger } from '../config/logger';
@@ -80,19 +80,32 @@ uploadRouter.get('/preview/:jobId', (req: AuthRequest, res: Response) => {
   }
 });
 
-uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ error: 'No file uploaded' });
-      return;
-    }
+uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthRequest, res: Response) => {
+  const uploadedFiles = req.files as Express.Multer.File[] | undefined;
 
+  // Backward compatibility: accept single file via 'file' field
+  // If no files via 'files', try single upload via 'file'
+  if (!uploadedFiles || uploadedFiles.length === 0) {
+    // Fall through to single-file handling below
+    res.status(400).json({ error: 'No files uploaded' });
+    return;
+  }
+
+  // Helper to clean up temp files on error
+  const cleanupFiles = (paths: string[]) => {
+    for (const p of paths) {
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch {}
+    }
+  };
+
+  try {
     // Parse config
     let config: any = {};
     if (req.body.config) {
       try {
         config = JSON.parse(req.body.config);
       } catch {
+        cleanupFiles(uploadedFiles.map(f => f.path));
         res.status(400).json({ error: 'Invalid config JSON' });
         return;
       }
@@ -100,18 +113,43 @@ uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthReque
 
     // Validate page range format early (prevent injection downstream)
     if (config.pageRange && !/^[\d,\- ]+$/.test(config.pageRange)) {
+      cleanupFiles(uploadedFiles.map(f => f.path));
       res.status(400).json({ error: 'Invalid page range format. Use digits, commas, and dashes only (e.g., "1-5,8,11-13")' });
       return;
     }
 
-    // Validate PDF
-    const validation = await validatePdf(req.file.path);
-    if (!validation.valid) {
-      res.status(400).json({ error: validation.error });
-      return;
+    // Validate each PDF
+    for (const file of uploadedFiles) {
+      const validation = await validatePdf(file.path);
+      if (!validation.valid) {
+        cleanupFiles(uploadedFiles.map(f => f.path));
+        res.status(400).json({ error: `${file.originalname}: ${validation.error}` });
+        return;
+      }
     }
 
-    const totalPages = validation.pages!;
+    let finalPath: string;
+    let totalPages: number;
+    let fileName: string;
+
+    if (uploadedFiles.length === 1) {
+      // Single file — same as before
+      const file = uploadedFiles[0];
+      const validation = await validatePdf(file.path);
+      totalPages = validation.pages!;
+      finalPath = file.path;
+      fileName = file.originalname;
+    } else {
+      // Multiple files — merge into one PDF
+      const result = await mergePdfs(uploadedFiles.map(f => f.path));
+      totalPages = result.totalPages;
+      finalPath = result.mergedPath;
+      fileName = uploadedFiles.map(f => f.originalname).join(', ');
+
+      // Clean up individual temp files after merge
+      cleanupFiles(uploadedFiles.map(f => f.path));
+    }
+
     const color = config.color === 'color' ? 'color' : 'grayscale';
     const copies = Math.min(Math.max(parseInt(config.copies) || 1, 1), 50);
     const duplex = config.duplex === true;
@@ -123,8 +161,8 @@ uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthReque
     const job = createJob({
       userEmail: req.userEmail!,
       userName: req.userName!,
-      fileName: req.file.originalname,
-      filePath: req.file.path,
+      fileName,
+      filePath: finalPath,
       totalPages,
       printPages: config.pageRange,
       paperSize: config.paperSize || 'A4',
@@ -135,11 +173,11 @@ uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthReque
       price: pricing.total,
     });
 
-    logger.info({ jobId: job.id, pages: totalPages, price: pricing.total }, 'Job created');
+    logger.info({ jobId: job.id, pages: totalPages, fileCount: uploadedFiles.length, price: pricing.total }, 'Job created');
 
     res.status(201).json({
       jobId: job.id,
-      fileName: req.file.originalname,
+      fileName,
       totalPages,
       printPages: pricing.printPages,
       price: pricing.total,
@@ -148,6 +186,7 @@ uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthReque
       estimatedWait: `${getEstimatedWaitMinutes()} minutes`,
     });
   } catch (err: any) {
+    cleanupFiles(uploadedFiles.map(f => f.path));
     logger.error({ err: err.message }, 'Upload failed');
     res.status(500).json({ error: 'Upload failed' });
   }
