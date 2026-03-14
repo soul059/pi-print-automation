@@ -418,9 +418,9 @@ adminRouter.get('/analytics', (req: Request, res: Response) => {
     const totalJobs = (db.prepare('SELECT COUNT(*) as count FROM jobs').get() as any)?.count ?? 0;
     const completedJobs = (db.prepare("SELECT COUNT(*) as count FROM jobs WHERE status = 'completed'").get() as any)?.count ?? 0;
     const failedJobs = (db.prepare("SELECT COUNT(*) as count FROM jobs WHERE status IN ('failed', 'failed_permanent')").get() as any)?.count ?? 0;
-    const revenueRow = db.prepare("SELECT COALESCE(SUM(total_price), 0) as total FROM jobs WHERE status = 'completed'").get() as any;
+    const revenueRow = db.prepare("SELECT COALESCE(SUM(price), 0) as total FROM jobs WHERE status = 'completed'").get() as any;
     const totalRevenue = revenueRow?.total ?? 0;
-    const pagesRow = db.prepare("SELECT COALESCE(SUM(page_count), 0) as total FROM jobs WHERE status = 'completed'").get() as any;
+    const pagesRow = db.prepare("SELECT COALESCE(SUM(total_pages), 0) as total FROM jobs WHERE status = 'completed'").get() as any;
     const totalPages = pagesRow?.total ?? 0;
     const avgJobPrice = completedJobs > 0 ? Math.round(totalRevenue / completedJobs) : 0;
 
@@ -428,8 +428,8 @@ adminRouter.get('/analytics', (req: Request, res: Response) => {
     const daily = db.prepare(
       `SELECT DATE(created_at) as date,
               COUNT(*) as jobs,
-              COALESCE(SUM(CASE WHEN status = 'completed' THEN total_price ELSE 0 END), 0) as revenue,
-              COALESCE(SUM(page_count), 0) as pages
+              COALESCE(SUM(CASE WHEN status = 'completed' THEN price ELSE 0 END), 0) as revenue,
+              COALESCE(SUM(total_pages), 0) as pages
        FROM jobs
        WHERE created_at >= datetime('now', '-30 days')
        GROUP BY DATE(created_at)

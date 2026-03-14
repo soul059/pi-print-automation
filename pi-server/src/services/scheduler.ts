@@ -1,5 +1,5 @@
 import { getDb } from '../db/connection.js';
-import { enqueueJob } from './queue.js';
+import { enqueueJob, getQueuedJobIds } from './queue.js';
 import { logger } from '../config/logger.js';
 
 let schedulerInterval: NodeJS.Timeout | null = null;
@@ -24,6 +24,10 @@ function checkScheduledJobs(): void {
     ).all() as Array<{ id: string }>;
 
     for (const job of readyJobs) {
+      // Prevent duplicate enqueue if job is already in the queue
+      const queued = getQueuedJobIds();
+      if (queued.includes(job.id)) continue;
+
       logger.info({ jobId: job.id }, 'Scheduled job ready, enqueuing');
       enqueueJob(job.id);
     }

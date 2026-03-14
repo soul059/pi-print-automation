@@ -114,9 +114,12 @@ async function processJob(jobId: string): Promise<void> {
     });
 
     // Update job with CUPS job ID
-    db.prepare(
-      "UPDATE jobs SET status = 'completed', cups_job_id = ?, updated_at = datetime('now') WHERE id = ?"
-    ).run(cupsJobId, jobId);
+    const completed = transitionJob(jobId, 'completed');
+    if (completed) {
+      db.prepare(
+        "UPDATE jobs SET cups_job_id = ?, updated_at = datetime('now') WHERE id = ?"
+      ).run(cupsJobId, jobId);
+    }
 
     logger.info({ jobId, cupsJobId }, 'Job printed successfully');
 
@@ -129,8 +132,10 @@ async function processJob(jobId: string): Promise<void> {
     const newRetryCount = (job.retry_count || 0) + 1;
 
     if (newRetryCount >= MAX_RETRIES) {
+      transitionJob(jobId, 'failed', err.message);
+      transitionJob(jobId, 'failed_permanent');
       db.prepare(
-        "UPDATE jobs SET status = 'failed_permanent', retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
+        "UPDATE jobs SET retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(newRetryCount, err.message, jobId);
       logger.error({ jobId, retries: newRetryCount }, 'Job permanently failed');
       // Auto-refund paid jobs that permanently failed
@@ -145,8 +150,9 @@ async function processJob(jobId: string): Promise<void> {
         refunded: true,
       }).catch(err2 => logger.error({ jobId, err: err2.message }, 'Failure notification failed'));
     } else {
+      transitionJob(jobId, 'failed', err.message);
       db.prepare(
-        "UPDATE jobs SET status = 'failed', retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
+        "UPDATE jobs SET retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(newRetryCount, err.message, jobId);
       logger.warn({ jobId, retries: newRetryCount }, 'Job failed, will retry');
 
@@ -167,10 +173,12 @@ export function startJobRecovery(): void {
   if (stuckJobs.length > 0) {
     logger.info({ count: stuckJobs.length }, 'Recovering interrupted jobs');
     for (const job of stuckJobs) {
-      // Reset printing → failed so the state machine can transition paid → printing again
+      // Reset printing → failed → paid so the state machine can transition paid → printing again
       if (job.status === 'printing') {
-        transitionJob(job.id, 'failed', 'Server restarted during printing');
-        transitionJob(job.id, 'paid');
+        const failOk = transitionJob(job.id, 'failed', 'Server restarted during printing');
+        if (!failOk) continue;
+        const paidOk = transitionJob(job.id, 'paid');
+        if (!paidOk) continue;
       }
       // Skip scheduled jobs still in the future — the scheduler will handle them
       if (job.scheduled_at && new Date(job.scheduled_at) > new Date()) {

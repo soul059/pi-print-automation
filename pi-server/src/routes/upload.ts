@@ -179,8 +179,9 @@ uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthR
     const copies = Math.min(Math.max(parseInt(config.copies) || 1, 1), 50);
     const duplex = config.duplex === true;
 
-    // Check daily page limit
-    const limitResult = checkLimit(req.userEmail!);
+    // Check daily page limit (accounting for pages in this upload * copies)
+    const effectivePages = totalPages * copies;
+    const limitResult = checkLimit(req.userEmail!, effectivePages);
     if (!limitResult.allowed) {
       if (uploadedFiles.length > 1) cleanupFiles([finalPath]);
       else cleanupFiles(uploadedFiles.map(f => f.path));
@@ -233,49 +234,3 @@ uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthR
   }
 });
 
-// PDF preview — serves the uploaded file for in-browser rendering
-// Accepts auth via Bearer header or ?token= query param (needed for pdfjs URL-based fetching)
-uploadRouter.get('/preview/:jobId', (req, res: Response) => {
-  try {
-    // Auth: try header first, then query param
-    let userEmail: string | undefined;
-    const authHeader = req.headers.authorization;
-    const queryToken = req.query.token as string;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : queryToken;
-
-    if (!token) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      res.status(401).json({ error: 'Invalid or expired token' });
-      return;
-    }
-    userEmail = decoded.email;
-
-    const job = getJob(req.params.jobId as string);
-    if (!job) {
-      res.status(404).json({ error: 'Job not found' });
-      return;
-    }
-
-    if (job.user_email !== userEmail) {
-      res.status(403).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    if (!fs.existsSync(job.file_path)) {
-      res.status(404).json({ error: 'File not found' });
-      return;
-    }
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline');
-    res.sendFile(path.resolve(job.file_path));
-  } catch (err: any) {
-    logger.error({ err: err.message }, 'Preview failed');
-    res.status(500).json({ error: 'Preview failed' });
-  }
-});

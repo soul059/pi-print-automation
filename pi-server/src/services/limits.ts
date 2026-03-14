@@ -36,13 +36,13 @@ export interface LimitCheckResult {
   remaining: number;
 }
 
-export function checkLimit(email: string): LimitCheckResult {
+export function checkLimit(email: string, incomingPages: number = 0): LimitCheckResult {
   const limit = getDailyPageLimit();
   const used = getTodayPageCount(email);
   const exemptions = getExemptionPages(email);
   const effectiveLimit = limit + exemptions;
   return {
-    allowed: used < effectiveLimit,
+    allowed: (used + incomingPages) <= effectiveLimit,
     used,
     limit: effectiveLimit,
     remaining: Math.max(0, effectiveLimit - used),

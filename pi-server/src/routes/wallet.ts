@@ -120,6 +120,15 @@ walletRouter.post('/topup/verify', requireAuth, async (req: AuthRequest, res: Re
       return;
     }
 
+    // Verify order ownership: the Razorpay order was created with notes.email
+    // Fetch order from Razorpay to confirm the authenticated user matches
+    const rz = getRazorpay();
+    const order = await rz.orders.fetch(razorpay_order_id);
+    if (order.notes?.email && order.notes.email !== email) {
+      res.status(403).json({ error: 'Order does not belong to this user' });
+      return;
+    }
+
     // Idempotent: if already captured, return current balance
     if (payment.status === 'captured') {
       const balance = getBalance(email);

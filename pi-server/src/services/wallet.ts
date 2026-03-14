@@ -59,9 +59,15 @@ export function debitWallet(
     return { success: false, balance: currentBalance };
   }
 
-  db.prepare(
+  const result = db.prepare(
     "UPDATE wallets SET balance = balance - ?, updated_at = datetime('now') WHERE user_email = ? AND balance >= ?"
   ).run(amount, email, amount);
+
+  // Check if the UPDATE actually modified a row (race condition guard)
+  if ((result as any).changes === 0) {
+    const actualBalance = getBalance(email);
+    return { success: false, balance: actualBalance };
+  }
 
   const wallet = db.prepare('SELECT balance FROM wallets WHERE user_email = ?').get(email) as { balance: number };
 
