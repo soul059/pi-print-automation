@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 
 export interface AuthRequest extends Request {
@@ -7,32 +7,20 @@ export interface AuthRequest extends Request {
   userName?: string;
 }
 
-// Simple JWT-like token (HMAC-based session token)
 export function generateToken(email: string, name: string): string {
-  const payload = JSON.stringify({ email, name, iat: Date.now() });
-  const encoded = Buffer.from(payload).toString('base64url');
-  const signature = crypto
-    .createHmac('sha256', env.JWT_SECRET)
-    .update(encoded)
-    .digest('base64url');
-  return `${encoded}.${signature}`;
+  return jwt.sign(
+    { sub: email, name, email },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRY as any, issuer: 'pi-print-service' }
+  );
 }
 
 export function verifyToken(token: string): { email: string; name: string } | null {
-  const parts = token.split('.');
-  if (parts.length !== 2) return null;
-
-  const [encoded, signature] = parts;
-  const expectedSig = crypto
-    .createHmac('sha256', env.JWT_SECRET)
-    .update(encoded)
-    .digest('base64url');
-
-  if (signature !== expectedSig) return null;
-
   try {
-    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString());
-    return { email: payload.email, name: payload.name };
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      issuer: 'pi-print-service',
+    }) as jwt.JwtPayload & { email: string; name: string };
+    return { email: decoded.email, name: decoded.name };
   } catch {
     return null;
   }
