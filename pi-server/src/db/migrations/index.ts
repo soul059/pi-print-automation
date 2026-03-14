@@ -135,4 +135,11 @@ const migrations = [
        VALUES ('EC Undergraduate B', 'ddu.ac.in', '^[0-9]{2}ecub[0-9]{3}$', 'ecub', 1)`,
     ],
   },
+  {
+    name: '004_payment_refund_columns',
+    statements: [
+      `ALTER TABLE payments ADD COLUMN refund_status TEXT DEFAULT NULL`,
+      `ALTER TABLE payments ADD COLUMN refund_id TEXT DEFAULT NULL`,
+    ],
+  },
 ];

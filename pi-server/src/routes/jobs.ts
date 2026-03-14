@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { getJob, getJobsByEmail } from '../models/job';
+import { getDb } from '../db/connection';
 
 export const jobsRouter = Router();
 
@@ -33,6 +34,12 @@ jobsRouter.get('/:jobId', requireAuth, (req: AuthRequest, res: Response) => {
     return;
   }
 
+  // Fetch refund info from payments table
+  const db = getDb();
+  const payment = db.prepare(
+    'SELECT refund_status, refund_id FROM payments WHERE job_id = ?'
+  ).get(job.id) as any;
+
   res.json({
     jobId: job.id,
     status: job.status,
@@ -47,6 +54,8 @@ jobsRouter.get('/:jobId', requireAuth, (req: AuthRequest, res: Response) => {
     price: job.price,
     cupsJobId: job.cups_job_id,
     errorMessage: job.error_message,
+    refundStatus: payment?.refund_status || null,
+    refundId: payment?.refund_id || null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   });

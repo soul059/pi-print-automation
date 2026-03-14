@@ -112,6 +112,24 @@ export default function StatusPage() {
         <h1 className="text-2xl font-bold">{statusInfo.label}</h1>
         <p className="text-gray-500">{statusInfo.description}</p>
 
+        {job.refundStatus === 'refunded' && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-green-800">💰 Payment Refunded</p>
+            <p className="text-xs text-green-600 mt-1">
+              Payment refunded. Amount will be credited to your account.
+            </p>
+          </div>
+        )}
+
+        {job.refundStatus === 'failed' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-yellow-800">⚠️ Refund Failed</p>
+            <p className="text-xs text-yellow-600 mt-1">
+              Automatic refund could not be processed. Please contact support.
+            </p>
+          </div>
+        )}
+
         {job.printMode === 'later' && job.status === 'completed' && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
             <p className="text-sm font-medium text-yellow-800">📦 Collect Later Mode</p>

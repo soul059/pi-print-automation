@@ -3,6 +3,7 @@ import { logger } from '../config/logger';
 import { transitionJob, getJob } from '../models/job';
 import * as cups from './cups';
 import * as pdf from './pdf';
+import { processRefund } from './refund';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
@@ -103,6 +104,10 @@ async function processJob(jobId: string): Promise<void> {
         "UPDATE jobs SET status = 'failed_permanent', retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(newRetryCount, err.message, jobId);
       logger.error({ jobId, retries: newRetryCount }, 'Job permanently failed');
+      // Auto-refund paid jobs that permanently failed
+      processRefund(jobId).catch(refundErr =>
+        logger.error({ jobId, err: refundErr.message }, 'Auto-refund failed')
+      );
     } else {
       db.prepare(
         "UPDATE jobs SET status = 'failed', retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"

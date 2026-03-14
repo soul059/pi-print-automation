@@ -142,6 +142,14 @@ export const api = {
     return res.json();
   },
 
+  async adminRefundJob(jobId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/jobs/${jobId}/refund`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
   async adminGetPolicies(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/policies`, {
       headers: { Authorization: `Bearer ${token}` },

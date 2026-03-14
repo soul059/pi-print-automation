@@ -5,6 +5,7 @@ import { getAllPolicies, createPolicy, updatePolicy, deletePolicy } from '../ser
 import { getAllJobs, transitionJob, getJob } from '../models/job';
 import { getPrinterStatus } from '../services/cups';
 import { enqueueJob, getQueueDepth } from '../services/queue';
+import { processRefund } from '../services/refund';
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
 import os from 'os';
@@ -185,6 +186,29 @@ adminRouter.post('/jobs/:jobId/cancel', (req: Request<{jobId: string}>, res: Res
   ).run(job.id);
 
   res.json({ success: true, jobId: job.id, status: 'failed_permanent' });
+});
+
+// --- Refund ---
+
+adminRouter.post('/jobs/:jobId/refund', async (req: Request<{jobId: string}>, res: Response) => {
+  const job = getJob(req.params.jobId);
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+
+  if (job.status !== 'failed_permanent') {
+    res.status(400).json({ error: 'Can only refund permanently failed jobs' });
+    return;
+  }
+
+  const result = await processRefund(job.id);
+  if (result.success) {
+    logger.info({ jobId: job.id, refundId: result.refundId }, 'Admin: refund processed');
+    res.json({ success: true, refundId: result.refundId });
+  } else {
+    res.status(400).json({ success: false, error: result.error });
+  }
 });
 
 // --- System Health ---

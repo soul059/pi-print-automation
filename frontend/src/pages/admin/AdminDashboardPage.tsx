@@ -15,6 +15,7 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  DollarSign,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -175,6 +176,20 @@ function JobsTab({ token }: { token: string }) {
     fetchJobs();
   };
 
+  const handleRefund = async (jobId: string) => {
+    setActionLoading(jobId);
+    try {
+      const result = await api.adminRefundJob(jobId, token);
+      if (result.error) {
+        alert(`Refund failed: ${result.error}`);
+      }
+    } catch {
+      alert('Refund request failed');
+    }
+    setActionLoading(null);
+    fetchJobs();
+  };
+
   const statuses = ['', 'uploaded', 'paid', 'printing', 'completed', 'failed', 'failed_permanent'];
 
   return (
@@ -232,6 +247,16 @@ function JobsTab({ token }: { token: string }) {
                     title="Retry"
                   >
                     {actionLoading === job.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  </button>
+                )}
+                {job.status === 'failed_permanent' && (
+                  <button
+                    onClick={() => handleRefund(job.id)}
+                    disabled={actionLoading === job.id}
+                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded"
+                    title="Refund"
+                  >
+                    {actionLoading === job.id ? <Loader2 size={14} className="animate-spin" /> : <DollarSign size={14} />}
                   </button>
                 )}
                 {!['completed', 'failed_permanent'].includes(job.status) && (
