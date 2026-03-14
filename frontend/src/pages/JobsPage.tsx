@@ -72,7 +72,7 @@ export default function JobsPage() {
       {jobs.length === 0 ? (
         <div className="text-center py-12">
           <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">No print jobs yet</p>
+          <p className="text-gray-500 dark:text-gray-400">No print jobs yet</p>
           <Link to="/" className="text-primary-600 text-sm hover:underline mt-2 inline-block">
             Upload your first document →
           </Link>
@@ -87,7 +87,7 @@ export default function JobsPage() {
                   ? `/payment/${job.jobId}`
                   : `/status/${job.jobId}`
               }
-              className="block bg-white rounded-xl border p-4 hover:shadow-md transition"
+              className="block bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4 hover:shadow-md transition"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

@@ -154,7 +154,7 @@ export default function WalletPage() {
       </div>
 
       {/* Top-up */}
-      <div className="bg-white rounded-xl border p-6 space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Add Money</h2>
 
         <div className="grid grid-cols-3 gap-2">
@@ -164,8 +164,8 @@ export default function WalletPage() {
               onClick={() => { setTopupAmount(amt); setCustomAmount(''); }}
               className={`py-2 rounded-lg border text-sm font-medium transition ${
                 topupAmount === amt
-                  ? 'bg-primary-50 border-primary-500 text-primary-700'
-                  : 'border-gray-200 hover:border-primary-300'
+                  ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-500 text-primary-700 dark:text-primary-300'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-primary-300'
               }`}
             >
               ₹{amt / 100}
@@ -184,19 +184,19 @@ export default function WalletPage() {
               placeholder="Custom (10-500)"
               value={customAmount}
               onChange={(e) => { setCustomAmount(e.target.value); setTopupAmount(null); }}
-              className="w-full pl-7 pr-3 py-2 border rounded-lg text-sm"
+              className="w-full pl-7 pr-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-100"
             />
           </div>
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg flex items-center gap-2">
+          <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg flex items-center gap-2">
             <AlertCircle size={16} /> {error}
           </p>
         )}
 
         {success && (
-          <p className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+          <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/30 px-3 py-2 rounded-lg">
             {success}
           </p>
         )}
@@ -212,7 +212,7 @@ export default function WalletPage() {
       </div>
 
       {/* Transaction History */}
-      <div className="bg-white rounded-xl border p-6 space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Transaction History</h2>
 
         {transactions.length === 0 ? (
@@ -220,7 +220,7 @@ export default function WalletPage() {
         ) : (
           <div className="space-y-3">
             {transactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between py-2 border-b last:border-0">
+              <div key={tx.id} className="flex items-center justify-between py-2 border-b dark:border-gray-700 last:border-0">
                 <div className="flex items-center gap-2">
                   {typeIcon(tx.type)}
                   <div>

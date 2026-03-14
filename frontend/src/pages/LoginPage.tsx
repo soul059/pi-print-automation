@@ -83,9 +83,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
         <h1 className="text-2xl font-bold text-center mb-2">Print Service</h1>
-        <p className="text-gray-500 text-center mb-8">Sign in with your university account</p>
+        <p className="text-gray-500 dark:text-gray-400 text-center mb-8">Sign in with your university account</p>
 
         {authMethod === 'main' && (
           <div className="space-y-5">
@@ -118,14 +118,14 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-200" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-3 bg-white text-gray-400">or</span>
+                <span className="px-3 bg-white dark:bg-gray-800 text-gray-400">or</span>
               </div>
             </div>
 
             {/* OTP Fallback */}
             <button
               onClick={() => { setAuthMethod('otp-email'); setError(''); }}
-              className="w-full flex items-center justify-center gap-2 border border-gray-300 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+              className="w-full flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
             >
               <Mail size={18} />
               Sign in with Email OTP
@@ -142,7 +142,7 @@ export default function LoginPage() {
         {authMethod === 'otp-email' && (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
               <div className="relative">
                 <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -151,13 +151,13 @@ export default function LoginPage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Keval Patel"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">University Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">University Email</label>
               <div className="relative">
                 <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -166,13 +166,13 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="23itub017@ddu.ac.in"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             </div>
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
             )}
 
             <button
@@ -206,7 +206,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter OTP</label>
               <div className="relative">
                 <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -216,7 +216,7 @@ export default function LoginPage() {
                   placeholder="123456"
                   required
                   maxLength={6}
-                  className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-center text-lg tracking-widest"
+                  className="w-full pl-10 pr-4 py-2.5 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-center text-lg tracking-widest bg-white dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             </div>

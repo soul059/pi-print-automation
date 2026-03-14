@@ -162,7 +162,7 @@ export default function PaymentPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-        <p className="text-lg text-gray-700">Job not found</p>
+        <p className="text-lg text-gray-700 dark:text-gray-300">Job not found</p>
       </div>
     );
   }
@@ -176,7 +176,7 @@ export default function PaymentPage() {
       <PrinterStatusBadge enabled />
 
       {/* Job Summary */}
-      <div className="bg-white rounded-xl border p-6 space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <CreditCard size={20} />
           Order Summary
@@ -184,8 +184,7 @@ export default function PaymentPage() {
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-500">File</span>
-            <span className="font-medium">{job.fileName}</span>
+            <span className="text-gray-500 dark:text-gray-400">File</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Pages</span>
@@ -229,7 +228,7 @@ export default function PaymentPage() {
       )}
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg flex items-center gap-2">
+        <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg flex items-center gap-2">
           <AlertCircle size={16} />
           {error}
         </p>
@@ -244,7 +243,7 @@ export default function PaymentPage() {
           className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-lg transition ${
             walletBalance >= job.price
               ? 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
           }`}
         >
           {walletPaying ? (

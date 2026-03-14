@@ -174,8 +174,8 @@ export default function UploadPage() {
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition ${
             files.length > 0
-              ? 'border-primary-300 bg-primary-50'
-              : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
+              ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/30 dark:border-primary-700'
+              : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800'
           }`}
         >
           <input
@@ -189,7 +189,7 @@ export default function UploadPage() {
           {files.length > 0 ? (
             <div className="space-y-2">
               {files.map((f, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 bg-white rounded-lg px-3 py-2 border">
+                <div key={i} className="flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-lg px-3 py-2 border dark:border-gray-700">
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText size={18} className="text-primary-600 shrink-0" />
                     <span className="text-sm font-medium text-primary-700 truncate">{f.name}</span>
@@ -222,7 +222,7 @@ export default function UploadPage() {
 
         {/* Print Options */}
         {files.length > 0 && (
-          <div className="bg-white rounded-xl border p-6 space-y-5">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 space-y-5">
             <div className="flex items-center gap-2 mb-4">
               <Settings size={20} className="text-gray-500" />
               <h2 className="text-lg font-semibold">Print Options</h2>
@@ -231,7 +231,7 @@ export default function UploadPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Page Range */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Page Range
                 </label>
                 <input
@@ -239,19 +239,19 @@ export default function UploadPage() {
                   value={pageRange}
                   onChange={(e) => setPageRange(e.target.value)}
                   placeholder="All pages (e.g., 1-5, 8)"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
 
               {/* Paper Size */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Paper Size
                 </label>
                 <select
                   value={paperSize}
                   onChange={(e) => setPaperSize(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                 >
                   {availablePaperSizes.map((s: string) => (
                     <option key={s} value={s}>{s}</option>
@@ -261,7 +261,7 @@ export default function UploadPage() {
 
               {/* Copies */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Copies
                 </label>
                 <input
@@ -270,13 +270,13 @@ export default function UploadPage() {
                   max={50}
                   value={copies}
                   onChange={(e) => setCopies(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
 
               {/* Color */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -284,7 +284,7 @@ export default function UploadPage() {
                     className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition ${
                       color === 'grayscale'
                         ? 'bg-gray-800 text-white border-gray-800'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }`}
                   >
                     B&W
@@ -296,7 +296,7 @@ export default function UploadPage() {
                     className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition ${
                       color === 'color'
                         ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
                     } ${!canColor ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Color
@@ -307,13 +307,13 @@ export default function UploadPage() {
               {/* Printer Selection */}
               {printers.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     <span className="flex items-center gap-1"><Printer size={14} /> Printer</span>
                   </label>
                   <select
                     value={selectedPrinter}
                     onChange={(e) => setSelectedPrinter(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="auto">Auto (least busy)</option>
                     {printers.map((p) => (
@@ -328,7 +328,7 @@ export default function UploadPage() {
 
             {/* Duplex */}
             <div className="flex items-center justify-between py-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Double-sided printing
                 {!canDuplex && <span className="text-gray-400 ml-1">(not available)</span>}
               </label>
@@ -350,7 +350,7 @@ export default function UploadPage() {
 
             {/* Print Mode */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Print Mode
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -359,8 +359,8 @@ export default function UploadPage() {
                   onClick={() => setPrintMode('now')}
                   className={`p-3 rounded-lg border text-left transition ${
                     printMode === 'now'
-                      ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200'
-                      : 'hover:bg-gray-50'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-2 ring-primary-200'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-600'
                   }`}
                 >
                   <p className="font-medium text-sm">Print Now</p>
@@ -371,8 +371,8 @@ export default function UploadPage() {
                   onClick={() => setPrintMode('later')}
                   className={`p-3 rounded-lg border text-left transition ${
                     printMode === 'later'
-                      ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200'
-                      : 'hover:bg-gray-50'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-2 ring-primary-200'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-600'
                   }`}
                 >
                   <p className="font-medium text-sm">Collect Later</p>
@@ -384,7 +384,7 @@ export default function UploadPage() {
         )}
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
         )}
 
         {/* Submit */}

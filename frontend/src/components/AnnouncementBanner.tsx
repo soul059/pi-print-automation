@@ -29,18 +29,18 @@ export default function AnnouncementBanner() {
 
   const styles: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
     info: {
-      bg: 'bg-blue-50 border-blue-200',
-      text: 'text-blue-800',
+      bg: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800',
+      text: 'text-blue-800 dark:text-blue-300',
       icon: <Info size={18} className="text-blue-500 shrink-0" />,
     },
     warning: {
-      bg: 'bg-amber-50 border-amber-200',
-      text: 'text-amber-800',
+      bg: 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800',
+      text: 'text-amber-800 dark:text-amber-300',
       icon: <AlertTriangle size={18} className="text-amber-500 shrink-0" />,
     },
     critical: {
-      bg: 'bg-red-50 border-red-200',
-      text: 'text-red-800',
+      bg: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800',
+      text: 'text-red-800 dark:text-red-300',
       icon: <AlertCircle size={18} className="text-red-500 shrink-0" />,
     },
   };

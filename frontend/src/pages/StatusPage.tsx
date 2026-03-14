@@ -111,10 +111,10 @@ export default function StatusPage() {
         <ArrowLeft size={16} /> Back to jobs
       </Link>
 
-      <div className="bg-white rounded-2xl border p-8 text-center space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 p-8 text-center space-y-4">
         <div className={statusInfo.color}>{statusInfo.icon}</div>
         <h1 className="text-2xl font-bold">{statusInfo.label}</h1>
-        <p className="text-gray-500">{statusInfo.description}</p>
+        <p className="text-gray-500 dark:text-gray-400">{statusInfo.description}</p>
 
         {isQueued && position !== null && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
@@ -154,27 +154,27 @@ export default function StatusPage() {
           </div>
         )}
 
-        <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2 text-left mt-4">
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-sm space-y-2 text-left mt-4">
           <div className="flex justify-between">
-            <span className="text-gray-500">Job ID</span>
+            <span className="text-gray-500 dark:text-gray-400">Job ID</span>
             <span className="font-mono text-xs">{job.jobId}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">File</span>
+            <span className="text-gray-500 dark:text-gray-400">File</span>
             <span>{job.fileName}</span>
           </div>
           {job.printerName && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Printer</span>
+              <span className="text-gray-500 dark:text-gray-400">Printer</span>
               <span>{job.printerName}</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-gray-500">Price</span>
+            <span className="text-gray-500 dark:text-gray-400">Price</span>
             <span>₹{(job.price / 100).toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Created</span>
+            <span className="text-gray-500 dark:text-gray-400">Created</span>
             <span>{new Date(job.createdAt).toLocaleString('en-IN')}</span>
           </div>
           {job.errorMessage && (

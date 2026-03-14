@@ -20,7 +20,7 @@ export default function WalletBadge() {
   return (
     <Link
       to="/wallet"
-      className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600"
+      className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600"
     >
       <Wallet size={16} />
       <span>₹{(balance / 100).toFixed(2)}</span>
