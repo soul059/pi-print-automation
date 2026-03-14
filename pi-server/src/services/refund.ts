@@ -2,6 +2,7 @@ import Razorpay from 'razorpay';
 import { env } from '../config/env';
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
+import { refundToWallet } from './wallet';
 
 let razorpay: Razorpay;
 function getRazorpay(): Razorpay {
@@ -26,6 +27,32 @@ export async function processRefund(jobId: string): Promise<{ success: boolean; 
     return { success: true, refundId: payment.refund_id };
   }
 
+  // Wallet-paid jobs: refund back to wallet
+  if (payment.payment_type === 'wallet') {
+    try {
+      const job = db.prepare('SELECT user_email, file_name FROM jobs WHERE id = ?').get(jobId) as any;
+      if (!job) {
+        return { success: false, error: 'Job not found for wallet refund' };
+      }
+
+      refundToWallet(job.user_email, payment.amount, jobId, `Refund for failed print: ${job.file_name}`);
+
+      db.prepare(
+        `UPDATE payments SET refund_status = 'refunded', refund_id = ?, updated_at = datetime('now') WHERE id = ?`
+      ).run(`wallet_refund_${jobId}`, payment.id);
+
+      logger.info({ jobId, amount: payment.amount }, 'Wallet refund processed');
+      return { success: true, refundId: `wallet_refund_${jobId}` };
+    } catch (err: any) {
+      logger.error({ jobId, err: err.message }, 'Wallet refund failed');
+      db.prepare(
+        `UPDATE payments SET refund_status = 'failed', updated_at = datetime('now') WHERE id = ?`
+      ).run(payment.id);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // Razorpay-paid jobs: refund via Razorpay
   try {
     const rz = getRazorpay();
     const refund = await (rz.payments as any).refund(payment.razorpay_payment_id, {

@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import PrinterStatusBadge from '../components/PrinterStatusBadge';
 import PdfPreview from '../components/PdfPreview';
-import { CreditCard, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { CreditCard, Loader2, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
 
 // Razorpay types
 declare global {
@@ -35,6 +35,8 @@ export default function PaymentPage() {
   const [job, setJob] = useState<JobDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [walletPaying, setWalletPaying] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [error, setError] = useState('');
 
   const fetchJob = useCallback(async () => {
@@ -51,6 +53,12 @@ export default function PaymentPage() {
 
   useEffect(() => {
     fetchJob();
+    // Fetch wallet balance
+    if (token) {
+      api.getWallet(token).then((data) => {
+        if (typeof data.balance === 'number') setWalletBalance(data.balance);
+      }).catch(() => {});
+    }
     // Load Razorpay script
     if (!document.querySelector('script[src*="razorpay"]')) {
       const script = document.createElement('script');
@@ -58,6 +66,25 @@ export default function PaymentPage() {
       document.head.appendChild(script);
     }
   }, [fetchJob]);
+
+  const handleWalletPayment = async () => {
+    if (!jobId || !token) return;
+    setWalletPaying(true);
+    setError('');
+
+    try {
+      const result = await api.payWithWallet(jobId, token);
+      if (result.success) {
+        navigate(`/status/${jobId}`);
+      } else {
+        setError(result.error || 'Wallet payment failed');
+      }
+    } catch {
+      setError('Wallet payment failed');
+    } finally {
+      setWalletPaying(false);
+    }
+  };
 
   const handlePayment = async () => {
     if (!jobId || !token) return;
@@ -206,6 +233,31 @@ export default function PaymentPage() {
           <AlertCircle size={16} />
           {error}
         </p>
+      )}
+
+      {/* Wallet Payment Option */}
+      {walletBalance !== null && (
+        <button
+          onClick={handleWalletPayment}
+          disabled={walletPaying || paying || walletBalance < job.price}
+          title={walletBalance < job.price ? 'Insufficient wallet balance' : undefined}
+          className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-lg transition ${
+            walletBalance >= job.price
+              ? 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {walletPaying ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <Wallet size={20} />
+          )}
+          {walletPaying
+            ? 'Processing...'
+            : walletBalance >= job.price
+              ? `Pay with Wallet (₹${(walletBalance / 100).toFixed(2)} balance)`
+              : `Insufficient balance (₹${(walletBalance / 100).toFixed(2)})`}
+        </button>
       )}
 
       <button

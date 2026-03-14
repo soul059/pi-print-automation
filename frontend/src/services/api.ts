@@ -182,4 +182,42 @@ export const api = {
     });
     return res.json();
   },
+
+  // Wallet
+  async getWallet(token: string) {
+    const res = await fetch(`${API_BASE}/api/wallet`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async walletTopup(amount: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/wallet/topup`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ amount }),
+    });
+    return res.json();
+  },
+
+  async walletTopupVerify(
+    data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string },
+    token: string
+  ) {
+    const res = await fetch(`${API_BASE}/api/wallet/topup/verify`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async payWithWallet(jobId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/payment/wallet`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ jobId }),
+    });
+    return res.json();
+  },
 };

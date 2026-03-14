@@ -8,6 +8,7 @@ import { getJob, transitionJob } from '../models/job';
 import { getDb } from '../db/connection';
 import { getPrinterStatus } from '../services/cups';
 import { enqueueJob } from '../services/queue';
+import { debitWallet } from '../services/wallet';
 import { nanoid } from 'nanoid';
 
 export const paymentRouter = Router();
@@ -159,6 +160,71 @@ paymentRouter.post('/verify', requireAuth, async (req: AuthRequest, res: Respons
   } catch (err: any) {
     logger.error({ err: err.message }, 'Payment verification failed');
     res.status(500).json({ error: 'Payment verification failed' });
+  }
+});
+
+// Pay for a job using wallet balance
+paymentRouter.post('/wallet', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { jobId } = req.body;
+    if (!jobId) {
+      res.status(400).json({ error: 'jobId is required' });
+      return;
+    }
+
+    const job = getJob(jobId);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    if (job.user_email !== req.userEmail) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (job.status !== 'uploaded') {
+      res.status(400).json({ error: `Job is in '${job.status}' state, cannot pay` });
+      return;
+    }
+
+    // Pre-payment printer status gate
+    const printerStatus = await getPrinterStatus();
+    if (!printerStatus.online) {
+      res.status(503).json({ error: 'Printer is offline', printerStatus });
+      return;
+    }
+    if (!printerStatus.accepting) {
+      res.status(503).json({ error: 'Printer is not accepting jobs', printerStatus });
+      return;
+    }
+
+    // Debit wallet
+    const debitResult = debitWallet(req.userEmail!, job.price, jobId, `Print job: ${job.file_name}`);
+    if (!debitResult.success) {
+      res.status(400).json({ error: 'Insufficient wallet balance', balance: debitResult.balance });
+      return;
+    }
+
+    // Create payment record with wallet type
+    const db = getDb();
+    const paymentId = `pay_${nanoid(12)}`;
+    db.prepare(
+      `INSERT INTO payments (id, job_id, amount, currency, status, payment_type)
+       VALUES (?, ?, ?, ?, 'captured', 'wallet')`
+    ).run(paymentId, job.id, job.price, 'INR');
+
+    // Transition job to payment_pending then paid
+    transitionJob(job.id, 'payment_pending');
+    const transitioned = transitionJob(job.id, 'paid');
+    if (transitioned) {
+      enqueueJob(job.id);
+    }
+
+    res.json({ success: true, jobId: job.id, status: 'paid', balance: debitResult.balance });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Wallet payment failed');
+    res.status(500).json({ error: 'Wallet payment failed' });
   }
 });
 

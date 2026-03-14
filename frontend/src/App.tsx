@@ -7,6 +7,7 @@ import UploadPage from './pages/UploadPage';
 import PaymentPage from './pages/PaymentPage';
 import StatusPage from './pages/StatusPage';
 import JobsPage from './pages/JobsPage';
+import WalletPage from './pages/WalletPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 
@@ -58,6 +59,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <JobsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wallet"
+              element={
+                <ProtectedRoute>
+                  <WalletPage />
                 </ProtectedRoute>
               }
             />

@@ -1,6 +1,7 @@
 import { useAuth } from '../hooks/useAuth';
 import { Printer, LogOut, History } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import WalletBadge from './WalletBadge';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, email, logout } = useAuth();
@@ -22,6 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {isAuthenticated && (
             <div className="flex items-center gap-4">
+              <WalletBadge />
               <Link
                 to="/jobs"
                 className="flex items-center gap-1 text-sm text-gray-600 hover:text-primary-600"

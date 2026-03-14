@@ -142,4 +142,29 @@ const migrations = [
       `ALTER TABLE payments ADD COLUMN refund_id TEXT DEFAULT NULL`,
     ],
   },
+  {
+    name: '005_wallet',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS wallets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL UNIQUE,
+        balance INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_wallets_email ON wallets(user_email)`,
+      `CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL,
+        type TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL,
+        reference_id TEXT,
+        description TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_wallet_tx_email ON wallet_transactions(user_email)`,
+      `ALTER TABLE payments ADD COLUMN payment_type TEXT NOT NULL DEFAULT 'razorpay'`,
+    ],
+  },
 ];
