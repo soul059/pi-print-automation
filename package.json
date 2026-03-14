@@ -1,0 +1,18 @@
+{
+  "name": "pi-print-automation",
+  "private": true,
+  "description": "Pi Zero 2W paid print automation service",
+  "scripts": {
+    "dev:server": "pnpm --filter pi-server dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build:server": "pnpm --filter pi-server build",
+    "build:frontend": "pnpm --filter frontend build",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

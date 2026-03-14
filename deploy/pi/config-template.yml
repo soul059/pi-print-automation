@@ -1,0 +1,12 @@
+# Cloudflare Tunnel Configuration Template
+# Copy to /home/pi/.cloudflared/config.yml and fill in your values
+
+tunnel: YOUR_TUNNEL_ID
+credentials-file: /home/pi/.cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: printer.yourdomain.com
+    service: http://localhost:3000
+    originRequest:
+      noTLSVerify: true
+  - service: http_status:404

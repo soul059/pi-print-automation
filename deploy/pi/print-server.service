@@ -1,0 +1,28 @@
+[Unit]
+Description=Pi Print Automation Server
+After=network.target cups.service
+Wants=cups.service
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/print-server/pi-server
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=print-server
+
+# Environment
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/print-server/pi-server/.env
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/print-server/pi-server/data /opt/print-server/pi-server/uploads
+
+[Install]
+WantedBy=multi-user.target
