@@ -1,12 +1,13 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { nanoid } from 'nanoid';
 import { env } from '../config/env';
-import { requireAuth, AuthRequest } from '../middleware/auth';
+import { requireAuth, AuthRequest, verifyToken } from '../middleware/auth';
 import { validatePdf, getPageCount } from '../services/pdf';
 import { calculatePrice } from '../services/pricing';
-import { createJob } from '../models/job';
+import { createJob, getJob } from '../models/job';
 import { logger } from '../config/logger';
 import { getEstimatedWaitMinutes } from '../services/queue';
 
@@ -32,6 +33,52 @@ const upload = multer({
 });
 
 export const uploadRouter = Router();
+
+// Serve uploaded PDF for preview (accepts token via header or query param)
+uploadRouter.get('/preview/:jobId', (req: AuthRequest, res: Response) => {
+  try {
+    // Accept auth from header or query param
+    let userEmail: string | undefined;
+    const authHeader = req.headers.authorization;
+    const queryToken = req.query.token as string | undefined;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : queryToken;
+
+    if (!token) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const user = verifyToken(token);
+    if (!user) {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return;
+    }
+    userEmail = user.email;
+
+    const job = getJob(req.params.jobId as string);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    if (job.user_email !== userEmail) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    if (!fs.existsSync(job.file_path)) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.sendFile(path.resolve(job.file_path));
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Preview failed');
+    res.status(500).json({ error: 'Preview failed' });
+  }
+});
 
 uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
@@ -103,5 +150,52 @@ uploadRouter.post('/', requireAuth, upload.single('file'), async (req: AuthReque
   } catch (err: any) {
     logger.error({ err: err.message }, 'Upload failed');
     res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
+// PDF preview — serves the uploaded file for in-browser rendering
+// Accepts auth via Bearer header or ?token= query param (needed for pdfjs URL-based fetching)
+uploadRouter.get('/preview/:jobId', (req, res: Response) => {
+  try {
+    // Auth: try header first, then query param
+    let userEmail: string | undefined;
+    const authHeader = req.headers.authorization;
+    const queryToken = req.query.token as string;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : queryToken;
+
+    if (!token) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return;
+    }
+    userEmail = decoded.email;
+
+    const job = getJob(req.params.jobId as string);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    if (job.user_email !== userEmail) {
+      res.status(403).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!fs.existsSync(job.file_path)) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.sendFile(path.resolve(job.file_path));
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Preview failed');
+    res.status(500).json({ error: 'Preview failed' });
   }
 });

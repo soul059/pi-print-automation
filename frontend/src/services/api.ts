@@ -36,6 +36,11 @@ export const api = {
     return res.json();
   },
 
+  // Preview
+  getPreviewUrl(jobId: string, token: string): string {
+    return `${API_BASE}/api/upload/preview/${jobId}?token=${token}`;
+  },
+
   // Upload
   async uploadFile(file: File, config: Record<string, unknown>, token: string) {
     const formData = new FormData();

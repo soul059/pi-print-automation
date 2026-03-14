@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import PrinterStatusBadge from '../components/PrinterStatusBadge';
+import PdfPreview from '../components/PdfPreview';
 import { CreditCard, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 // Razorpay types
@@ -194,6 +195,11 @@ export default function PaymentPage() {
           </div>
         </div>
       </div>
+
+      {/* PDF Preview */}
+      {jobId && token && job.totalPages > 0 && (
+        <PdfPreview jobId={jobId} token={token} totalPages={job.totalPages} />
+      )}
 
       {error && (
         <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg flex items-center gap-2">
