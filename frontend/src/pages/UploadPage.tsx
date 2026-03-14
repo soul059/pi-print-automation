@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePrinterStatus } from '../hooks/usePrinterStatus';
+import { usePreferences } from '../hooks/usePreferences';
 import { api } from '../services/api';
 import PrinterStatusBadge from '../components/PrinterStatusBadge';
 import {
@@ -21,6 +22,8 @@ export default function UploadPage() {
   const { token } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { load: loadPrefs, save: savePrefs } = usePreferences();
+  const savedPrefs = useRef(loadPrefs());
 
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,13 +32,13 @@ export default function UploadPage() {
   // Only connect to printer status after files are selected
   const { status } = usePrinterStatus(files.length > 0);
 
-  // Print options
+  // Print options (initialized from saved preferences)
   const [pageRange, setPageRange] = useState('');
-  const [paperSize, setPaperSize] = useState('A4');
-  const [copies, setCopies] = useState(1);
-  const [duplex, setDuplex] = useState(false);
-  const [color, setColor] = useState<'grayscale' | 'color'>('grayscale');
-  const [printMode, setPrintMode] = useState<'now' | 'later'>('now');
+  const [paperSize, setPaperSize] = useState(savedPrefs.current.paperSize ?? 'A4');
+  const [copies, setCopies] = useState(savedPrefs.current.copies ?? 1);
+  const [duplex, setDuplex] = useState(savedPrefs.current.duplex ?? false);
+  const [color, setColor] = useState<'grayscale' | 'color'>(savedPrefs.current.color ?? 'grayscale');
+  const [printMode, setPrintMode] = useState<'now' | 'later'>(savedPrefs.current.printMode ?? 'now');
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -97,6 +100,7 @@ export default function UploadPage() {
         return;
       }
 
+      savePrefs({ paperSize, copies, duplex, color, printMode });
       navigate(`/payment/${result.jobId}`);
     } catch {
       setError('Upload failed. Please try again.');
