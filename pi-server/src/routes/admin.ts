@@ -16,6 +16,16 @@ import { env } from '../config/env';
 
 export const adminRouter = Router();
 
+function escapeCsvField(value: string): string {
+  if (value == null) return '';
+  const str = String(value);
+  const sanitized = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  if (sanitized.includes(',') || sanitized.includes('"') || sanitized.includes('\n')) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
+}
+
 // --- Admin Login (public, no auth required) ---
 
 adminRouter.post('/login', async (req: Request, res: Response) => {
@@ -145,6 +155,35 @@ adminRouter.get('/jobs', (req: Request, res: Response) => {
   });
 
   res.json(result);
+});
+
+adminRouter.get('/jobs/export', (_req: Request, res: Response) => {
+  const db = getDb();
+  const jobs = db.prepare(
+    'SELECT id, user_email, file_name, total_pages, status, price, paper_size, copies, duplex, color, print_mode, printer_name, created_at, updated_at FROM jobs ORDER BY created_at DESC'
+  ).all() as any[];
+
+  const header = 'Job ID,User Email,File Name,Pages,Status,Price (₹),Paper Size,Copies,Duplex,Color,Mode,Printer,Created,Updated\n';
+  const rows = jobs.map((j: any) => [
+    escapeCsvField(j.id),
+    escapeCsvField(j.user_email || ''),
+    escapeCsvField(j.file_name || ''),
+    j.total_pages,
+    escapeCsvField(j.status),
+    ((j.price || 0) / 100).toFixed(2),
+    escapeCsvField(j.paper_size || ''),
+    j.copies,
+    j.duplex ? 'Yes' : 'No',
+    escapeCsvField(j.color || ''),
+    escapeCsvField(j.print_mode || ''),
+    escapeCsvField(j.printer_name || ''),
+    escapeCsvField(j.created_at || ''),
+    escapeCsvField(j.updated_at || ''),
+  ].join(',')).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="all-print-history-${new Date().toISOString().split('T')[0]}.csv"`);
+  res.send(header + rows);
 });
 
 adminRouter.post('/jobs/:jobId/retry', (req: Request<{jobId: string}>, res: Response) => {

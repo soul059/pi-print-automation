@@ -19,6 +19,7 @@ import {
   BarChart3,
   Megaphone,
   Gauge,
+  Download,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -229,9 +230,17 @@ function JobsTab({ token }: { token: string }) {
             </button>
           ))}
         </div>
-        <button onClick={fetchJobs} className="flex items-center gap-1 text-sm text-primary-600">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={fetchJobs} className="flex items-center gap-1 text-sm text-primary-600">
+            <RefreshCw size={14} /> Refresh
+          </button>
+          <button
+            onClick={() => api.downloadCSV('/api/admin/jobs/export', token, `all-print-history-${new Date().toISOString().split('T')[0]}.csv`)}
+            className="flex items-center gap-1 text-sm border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition"
+          >
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
       </div>
 
       {loading ? (

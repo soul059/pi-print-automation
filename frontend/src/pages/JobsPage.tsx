@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { FileText, Loader2, Plus } from 'lucide-react';
+import { FileText, Loader2, Plus, Download } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   uploaded: 'bg-gray-100 text-gray-700',
@@ -61,12 +61,22 @@ export default function JobsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My Print Jobs</h1>
-        <Link
-          to="/"
-          className="flex items-center gap-1 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition"
-        >
-          <Plus size={16} /> New Print
-        </Link>
+        <div className="flex items-center gap-2">
+          {jobs.length > 0 && (
+            <button
+              onClick={() => api.downloadCSV('/api/jobs/export', token!, `print-history-${new Date().toISOString().split('T')[0]}.csv`)}
+              className="flex items-center gap-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+            >
+              <Download size={16} /> Export CSV
+            </button>
+          )}
+          <Link
+            to="/"
+            className="flex items-center gap-1 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition"
+          >
+            <Plus size={16} /> New Print
+          </Link>
+        </div>
       </div>
 
       {jobs.length === 0 ? (
