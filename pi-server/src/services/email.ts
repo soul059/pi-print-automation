@@ -71,6 +71,10 @@ export async function sendOtp(email: string, otp: string): Promise<void> {
   }
 }
 
+export function getMailTransporter(): nodemailer.Transporter {
+  return getTransporter();
+}
+
 export function verifyOtp(email: string, otp: string): boolean {
   const db = getDb();
 

@@ -4,6 +4,7 @@ import { transitionJob, getJob } from '../models/job';
 import * as cups from './cups';
 import * as pdf from './pdf';
 import { processRefund } from './refund';
+import { notifyJobCompleted, notifyJobFailed } from './notification';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
@@ -11,6 +12,7 @@ const RETRY_DELAY_MS = 5000;
 interface QueuedJob {
   id: string;
   status: string;
+  file_name: string;
   file_path: string;
   user_name: string;
   user_email: string;
@@ -96,6 +98,12 @@ async function processJob(jobId: string): Promise<void> {
     ).run(cupsJobId, jobId);
 
     logger.info({ jobId, cupsJobId }, 'Job printed successfully');
+
+    notifyJobCompleted(job.user_email, {
+      jobId,
+      fileName: job.file_name,
+      printMode: job.print_mode,
+    }).catch(err2 => logger.error({ jobId, err: err2.message }, 'Completion notification failed'));
   } catch (err: any) {
     const newRetryCount = (job.retry_count || 0) + 1;
 
@@ -108,6 +116,13 @@ async function processJob(jobId: string): Promise<void> {
       processRefund(jobId).catch(refundErr =>
         logger.error({ jobId, err: refundErr.message }, 'Auto-refund failed')
       );
+
+      notifyJobFailed(job.user_email, {
+        jobId,
+        fileName: job.file_name,
+        error: err.message,
+        refunded: true,
+      }).catch(err2 => logger.error({ jobId, err: err2.message }, 'Failure notification failed'));
     } else {
       db.prepare(
         "UPDATE jobs SET status = 'failed', retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
