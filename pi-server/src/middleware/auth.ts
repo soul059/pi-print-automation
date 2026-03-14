@@ -7,11 +7,25 @@ export interface AuthRequest extends Request {
   userName?: string;
 }
 
+export interface AdminRequest extends Request {
+  adminId?: number;
+  adminUsername?: string;
+  adminRole?: string;
+}
+
 export function generateToken(email: string, name: string): string {
   return jwt.sign(
     { sub: email, name, email },
     env.JWT_SECRET,
     { expiresIn: env.JWT_EXPIRY as any, issuer: 'pi-print-service' }
+  );
+}
+
+export function generateAdminToken(adminId: number, username: string, role: string): string {
+  return jwt.sign(
+    { sub: `admin:${adminId}`, adminId, username, role },
+    env.JWT_SECRET,
+    { expiresIn: '24h' as any, issuer: 'pi-print-service' }
   );
 }
 
@@ -45,11 +59,39 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   next();
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  const token = req.headers['x-admin-token'];
-  if (token !== env.ADMIN_TOKEN) {
-    res.status(403).json({ error: 'Admin access required' });
+export function requireAdmin(req: AdminRequest, res: Response, next: NextFunction): void {
+  // Support legacy static token for scripts/API
+  const staticToken = req.headers['x-admin-token'];
+  if (staticToken === env.ADMIN_TOKEN) {
+    req.adminUsername = 'static-token';
+    req.adminRole = 'admin';
+    next();
     return;
   }
-  next();
+
+  // JWT-based admin auth
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Admin authentication required' });
+    return;
+  }
+
+  try {
+    const token = authHeader.slice(7);
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      issuer: 'pi-print-service',
+    }) as jwt.JwtPayload & { adminId: number; username: string; role: string };
+
+    if (!decoded.role || decoded.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    req.adminId = decoded.adminId;
+    req.adminUsername = decoded.username;
+    req.adminRole = decoded.role;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired admin token' });
+  }
 }

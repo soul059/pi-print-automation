@@ -82,4 +82,81 @@ export const api = {
     });
     return res.json();
   },
+
+  // Admin
+  async adminLogin(username: string, password: string) {
+    const res = await fetch(`${API_BASE}/api/admin/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ username, password }),
+    });
+    return res.json();
+  },
+
+  async adminGetHealth(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/health`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminGetJobs(token: string, params?: { status?: string; limit?: number; offset?: number }) {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const res = await fetch(`${API_BASE}/api/admin/jobs?${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminRetryJob(jobId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/jobs/${jobId}/retry`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminCancelJob(jobId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/jobs/${jobId}/cancel`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminGetPolicies(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/policies`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminCreatePolicy(data: Record<string, unknown>, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/policies`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async adminUpdatePolicy(id: number, data: Record<string, unknown>, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/policies/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async adminDeletePolicy(id: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/policies/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
 };

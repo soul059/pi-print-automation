@@ -16,13 +16,15 @@ const PAPER_SIZES = ['A4', 'Letter', 'Legal', 'A3', 'A5'];
 
 export default function UploadPage() {
   const { token } = useAuth();
-  const { status } = usePrinterStatus();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Only connect to printer status after file is selected
+  const { status } = usePrinterStatus(!!file);
 
   // Print options
   const [pageRange, setPageRange] = useState('');
@@ -92,7 +94,7 @@ export default function UploadPage() {
         <h1 className="text-2xl font-bold">Print a Document</h1>
       </div>
 
-      <PrinterStatusBadge />
+      <PrinterStatusBadge enabled={!!file} />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* File Upload */}

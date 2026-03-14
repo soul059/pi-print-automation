@@ -1,8 +1,14 @@
 import { usePrinterStatus } from '../hooks/usePrinterStatus';
 import { Wifi, WifiOff, Loader2, AlertTriangle } from 'lucide-react';
 
-export default function PrinterStatusBadge() {
-  const { status, loading } = usePrinterStatus();
+interface Props {
+  enabled?: boolean;
+}
+
+export default function PrinterStatusBadge({ enabled = false }: Props) {
+  const { status, loading } = usePrinterStatus(enabled);
+
+  if (!enabled) return null;
 
   if (loading) {
     return (

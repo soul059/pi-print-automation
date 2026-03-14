@@ -145,7 +145,7 @@ export default function PaymentPage() {
     <div className="max-w-lg mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Payment</h1>
 
-      <PrinterStatusBadge />
+      <PrinterStatusBadge enabled />
 
       {/* Job Summary */}
       <div className="bg-white rounded-xl border p-6 space-y-4">

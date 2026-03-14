@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { requireAdmin } from '../middleware/auth';
+import bcrypt from 'bcryptjs';
+import { requireAdmin, generateAdminToken } from '../middleware/auth';
 import { getAllPolicies, createPolicy, updatePolicy, deletePolicy } from '../services/policy';
 import { getAllJobs, transitionJob, getJob } from '../models/job';
 import { getPrinterStatus } from '../services/cups';
@@ -12,7 +13,47 @@ import { env } from '../config/env';
 
 export const adminRouter = Router();
 
-// All admin routes require admin token
+// --- Admin Login (public, no auth required) ---
+
+adminRouter.post('/login', async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400).json({ error: 'Username and password required' });
+    return;
+  }
+
+  const db = getDb();
+  const admin = db.prepare('SELECT * FROM admins WHERE username = ? AND active = 1').get(username) as any;
+
+  if (!admin) {
+    res.status(401).json({ error: 'Invalid credentials' });
+    return;
+  }
+
+  const valid = await bcrypt.compare(password, admin.password_hash);
+  if (!valid) {
+    res.status(401).json({ error: 'Invalid credentials' });
+    return;
+  }
+
+  // Update last login
+  db.prepare("UPDATE admins SET last_login_at = datetime('now') WHERE id = ?").run(admin.id);
+
+  const token = generateAdminToken(admin.id, admin.username, admin.role);
+  logger.info({ username }, 'Admin login successful');
+
+  res.json({
+    token,
+    admin: {
+      id: admin.id,
+      username: admin.username,
+      displayName: admin.display_name,
+      role: admin.role,
+    },
+  });
+});
+
+// All routes below require admin auth
 adminRouter.use(requireAdmin);
 
 // --- Email Policies ---
@@ -162,7 +203,7 @@ adminRouter.get('/health', async (_req: Request, res: Response) => {
 
     // Last successful print
     const lastPrint = db
-      .prepare("SELECT completed_at FROM jobs WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 1")
+      .prepare("SELECT updated_at FROM jobs WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 1")
       .get() as any;
 
     // Disk usage
@@ -195,7 +236,7 @@ adminRouter.get('/health', async (_req: Request, res: Response) => {
         platform: os.platform(),
         arch: os.arch(),
       },
-      lastSuccessfulPrint: lastPrint?.completed_at || null,
+      lastSuccessfulPrint: lastPrint?.updated_at || null,
     });
   } catch (err: any) {
     logger.error({ err: err.message }, 'Health check failed');

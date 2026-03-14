@@ -49,15 +49,7 @@ app.use('/api/admin', adminRouter);
 // Error handler
 app.use(errorHandler);
 
-// Socket.IO
-io.on('connection', (socket) => {
-  logger.debug({ socketId: socket.id }, 'Client connected');
-  socket.on('disconnect', () => {
-    logger.debug({ socketId: socket.id }, 'Client disconnected');
-  });
-});
-
-// Printer status broadcast
+// Printer status broadcast (handles socket connections internally)
 setupPrinterStatusBroadcast(io);
 
 export { app, httpServer, io };

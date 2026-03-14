@@ -109,7 +109,23 @@ const migrations = [
     ],
   },
   {
-    name: '002_seed_default_policy',
+    name: '002_admins_table',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS admins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        display_name TEXT,
+        role TEXT NOT NULL DEFAULT 'admin',
+        active INTEGER NOT NULL DEFAULT 1,
+        last_login_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    name: '003_seed_default_policy',
     statements: [
       `INSERT OR IGNORE INTO email_policies (name, domain, pattern, department_key, active)
        VALUES ('IT Undergraduate B', 'ddu.ac.in', '^[0-9]{2}itub[0-9]{3}$', 'itub', 1)`,
