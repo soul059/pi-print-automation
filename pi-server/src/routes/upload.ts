@@ -10,6 +10,7 @@ import { calculatePrice } from '../services/pricing';
 import { createJob, getJob } from '../models/job';
 import { logger } from '../config/logger';
 import { getEstimatedWaitMinutes } from '../services/queue';
+import { checkLimit } from '../services/limits';
 
 // Multer config
 const storage = multer.diskStorage({
@@ -153,6 +154,20 @@ uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthR
     const color = config.color === 'color' ? 'color' : 'grayscale';
     const copies = Math.min(Math.max(parseInt(config.copies) || 1, 1), 50);
     const duplex = config.duplex === true;
+
+    // Check daily page limit
+    const limitResult = checkLimit(req.userEmail!);
+    if (!limitResult.allowed) {
+      if (uploadedFiles.length > 1) cleanupFiles([finalPath]);
+      else cleanupFiles(uploadedFiles.map(f => f.path));
+      res.status(403).json({
+        error: 'daily_limit_exceeded',
+        used: limitResult.used,
+        limit: limitResult.limit,
+        remaining: limitResult.remaining,
+      });
+      return;
+    }
 
     // Calculate price
     const pricing = calculatePrice(totalPages, config.pageRange, color, copies, duplex);

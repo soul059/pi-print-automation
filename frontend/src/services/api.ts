@@ -276,4 +276,52 @@ export const api = {
     });
     return res.json();
   },
+
+  // Print Limits
+  async getUserLimit(token: string) {
+    const res = await fetch(`${API_BASE}/api/user/limit`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminGetDailyLimit(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/settings/daily-limit`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminSetDailyLimit(limit: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/settings/daily-limit`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify({ limit }),
+    });
+    return res.json();
+  },
+
+  async adminGrantExemption(email: string, extraPages: number, reason: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/exemptions`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ email, extraPages, reason }),
+    });
+    return res.json();
+  },
+
+  async adminGetExemptions(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/exemptions`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminRevokeExemption(id: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/exemptions/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
 };

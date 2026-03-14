@@ -13,6 +13,7 @@ import {
   CreditCard,
   X,
   Printer,
+  AlertTriangle,
 } from 'lucide-react';
 
 const PAPER_SIZES = ['A4', 'Letter', 'Legal', 'A3', 'A5'];
@@ -29,6 +30,7 @@ export default function UploadPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [limitInfo, setLimitInfo] = useState<{ allowed: boolean; used: number; limit: number; remaining: number } | null>(null);
 
   // Only connect to printer status after files are selected
   const { status } = usePrinterStatus(files.length > 0);
@@ -50,6 +52,14 @@ export default function UploadPage() {
       if (data.printers) setPrinters(data.printers);
     }).catch(() => {});
   }, [files.length]);
+
+  // Fetch daily print limit
+  useEffect(() => {
+    if (!token) return;
+    api.getUserLimit(token).then((data: any) => {
+      if (typeof data.allowed === 'boolean') setLimitInfo(data);
+    }).catch(() => {});
+  }, [token]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -108,7 +118,12 @@ export default function UploadPage() {
       const result = await api.uploadFile(files, config, token);
 
       if (result.error) {
-        setError(result.error);
+        if (result.error === 'daily_limit_exceeded') {
+          setLimitInfo({ allowed: false, used: result.used, limit: result.limit, remaining: result.remaining });
+          setError(`Daily print limit exceeded. You've used ${result.used} of ${result.limit} pages today. Contact admin for more pages.`);
+        } else {
+          setError(result.error);
+        }
         return;
       }
 
@@ -132,6 +147,26 @@ export default function UploadPage() {
       </div>
 
       <PrinterStatusBadge enabled={files.length > 0} />
+
+      {limitInfo && (
+        <div className={`flex items-start gap-2 text-sm px-4 py-3 rounded-lg ${
+          limitInfo.allowed
+            ? 'bg-blue-50 text-blue-700'
+            : 'bg-amber-50 text-amber-700'
+        }`}>
+          {!limitInfo.allowed && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
+          <div>
+            <p className="font-medium">
+              {limitInfo.allowed
+                ? `You've printed ${limitInfo.used}/${limitInfo.limit} pages today. ${limitInfo.remaining} remaining.`
+                : `Daily limit reached: ${limitInfo.used}/${limitInfo.limit} pages used.`}
+            </p>
+            {!limitInfo.allowed && (
+              <p className="text-xs mt-1">Request more pages from an administrator to continue printing.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* File Upload */}

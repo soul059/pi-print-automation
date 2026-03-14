@@ -9,6 +9,7 @@ import { enqueueJob, getQueueDepth } from '../services/queue';
 import { processRefund } from '../services/refund';
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
+import { getDailyPageLimit, setDailyPageLimit } from '../services/limits';
 import os from 'os';
 import fs from 'fs';
 import { env } from '../config/env';
@@ -496,5 +497,96 @@ adminRouter.get('/health', async (_req: Request, res: Response) => {
   } catch (err: any) {
     logger.error({ err: err.message }, 'Health check failed');
     res.status(500).json({ error: 'Health check failed' });
+  }
+});
+
+// --- Print Limits ---
+
+adminRouter.get('/settings/daily-limit', (_req: Request, res: Response) => {
+  try {
+    const limit = getDailyPageLimit();
+    res.json({ limit });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to get daily limit');
+    res.status(500).json({ error: 'Failed to get daily limit' });
+  }
+});
+
+adminRouter.put('/settings/daily-limit', (req: Request, res: Response) => {
+  try {
+    const { limit } = req.body;
+    if (typeof limit !== 'number' || limit < 1) {
+      res.status(400).json({ error: 'Limit must be a positive number' });
+      return;
+    }
+    setDailyPageLimit(limit);
+    logger.info({ limit }, 'Daily page limit updated');
+    res.json({ limit });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to update daily limit');
+    res.status(500).json({ error: 'Failed to update daily limit' });
+  }
+});
+
+adminRouter.get('/exemptions', (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const exemptions = db.prepare(
+      "SELECT * FROM print_exemptions WHERE expires_at > datetime('now') ORDER BY granted_at DESC"
+    ).all();
+    res.json({ exemptions });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to get exemptions');
+    res.status(500).json({ error: 'Failed to get exemptions' });
+  }
+});
+
+adminRouter.post('/exemptions', (req: Request, res: Response) => {
+  try {
+    const { email, extraPages, reason } = req.body;
+    if (!email || !extraPages) {
+      res.status(400).json({ error: 'email and extraPages are required' });
+      return;
+    }
+    if (typeof extraPages !== 'number' || extraPages < 1) {
+      res.status(400).json({ error: 'extraPages must be a positive number' });
+      return;
+    }
+    const db = getDb();
+    const adminReq = req as any;
+    const grantedBy = adminReq.adminUsername || 'admin';
+    // Expires at end of current day
+    const expiresAt = new Date();
+    expiresAt.setHours(23, 59, 59, 999);
+    const result = db.prepare(
+      'INSERT INTO print_exemptions (user_email, extra_pages, reason, granted_by, expires_at) VALUES (?, ?, ?, ?, ?)'
+    ).run(email, extraPages, reason || null, grantedBy, expiresAt.toISOString());
+    const exemption = db.prepare('SELECT * FROM print_exemptions WHERE id = ?').get(result.lastInsertRowid);
+    logger.info({ email, extraPages, grantedBy }, 'Print exemption granted');
+    res.status(201).json({ exemption });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to grant exemption');
+    res.status(500).json({ error: 'Failed to grant exemption' });
+  }
+});
+
+adminRouter.delete('/exemptions/:id', (req: Request<{id: string}>, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid exemption ID' });
+      return;
+    }
+    const db = getDb();
+    const existing = db.prepare('SELECT * FROM print_exemptions WHERE id = ?').get(id);
+    if (!existing) {
+      res.status(404).json({ error: 'Exemption not found' });
+      return;
+    }
+    db.prepare('DELETE FROM print_exemptions WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to revoke exemption');
+    res.status(500).json({ error: 'Failed to revoke exemption' });
   }
 });

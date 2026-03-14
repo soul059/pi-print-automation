@@ -186,4 +186,24 @@ const migrations = [
       `ALTER TABLE jobs ADD COLUMN printer_name TEXT`,
     ],
   },
+  {
+    name: '008_print_limits',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`,
+      `INSERT OR IGNORE INTO settings (key, value) VALUES ('daily_page_limit', '100')`,
+      `CREATE TABLE IF NOT EXISTS print_exemptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL,
+        extra_pages INTEGER NOT NULL,
+        reason TEXT,
+        granted_by TEXT NOT NULL,
+        granted_at TEXT DEFAULT (datetime('now')),
+        expires_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ];

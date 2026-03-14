@@ -18,10 +18,11 @@ import {
   DollarSign,
   BarChart3,
   Megaphone,
+  Gauge,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-type Tab = 'overview' | 'jobs' | 'policies';
+type Tab = 'overview' | 'jobs' | 'policies' | 'limits';
 
 export default function AdminDashboardPage() {
   const { token, displayName, logout } = useAdmin();
@@ -58,6 +59,7 @@ export default function AdminDashboardPage() {
           { id: 'overview', label: 'Overview', icon: Activity },
           { id: 'jobs', label: 'Jobs', icon: FileText },
           { id: 'policies', label: 'Email Policies', icon: Shield },
+          { id: 'limits', label: 'Print Limits', icon: Gauge },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -89,6 +91,7 @@ export default function AdminDashboardPage() {
       {tab === 'overview' && <OverviewTab token={token!} />}
       {tab === 'jobs' && <JobsTab token={token!} />}
       {tab === 'policies' && <PoliciesTab token={token!} />}
+      {tab === 'limits' && <LimitsTab token={token!} />}
     </div>
   );
 }
@@ -462,6 +465,187 @@ function PoliciesTab({ token }: { token: string }) {
                   <Trash2 size={14} />
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Limits Tab ---
+function LimitsTab({ token }: { token: string }) {
+  const [dailyLimit, setDailyLimit] = useState<number>(100);
+  const [newLimit, setNewLimit] = useState<string>('');
+  const [exemptions, setExemptions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ email: '', extraPages: '', reason: '' });
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [limitData, exemptionData] = await Promise.all([
+        api.adminGetDailyLimit(token),
+        api.adminGetExemptions(token),
+      ]);
+      if (limitData.limit) {
+        setDailyLimit(limitData.limit);
+        setNewLimit(String(limitData.limit));
+      }
+      setExemptions(exemptionData.exemptions || []);
+    } catch {}
+    setLoading(false);
+  }, [token]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleUpdateLimit = async () => {
+    const parsed = parseInt(newLimit, 10);
+    if (isNaN(parsed) || parsed < 1) return;
+    setSaving(true);
+    await api.adminSetDailyLimit(parsed, token);
+    setDailyLimit(parsed);
+    setSaving(false);
+  };
+
+  const handleGrantExemption = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    const extraPages = parseInt(form.extraPages, 10);
+    if (!form.email || isNaN(extraPages) || extraPages < 1) {
+      setFormError('Valid email and page count required');
+      return;
+    }
+    const result = await api.adminGrantExemption(form.email, extraPages, form.reason, token);
+    if (result.error) {
+      setFormError(result.error);
+      return;
+    }
+    setForm({ email: '', extraPages: '', reason: '' });
+    setShowForm(false);
+    fetchData();
+  };
+
+  const handleRevoke = async (id: number) => {
+    if (!confirm('Revoke this exemption?')) return;
+    await api.adminRevokeExemption(id, token);
+    fetchData();
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-4">
+      {/* Daily Limit Setting */}
+      <Card title="Daily Page Limit" icon={<Gauge size={18} />}>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={1}
+            value={newLimit}
+            onChange={(e) => setNewLimit(e.target.value)}
+            className="w-32 px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+          />
+          <span className="text-sm text-gray-500">pages per user per day</span>
+          <button
+            onClick={handleUpdateLimit}
+            disabled={saving || parseInt(newLimit, 10) === dailyLimit}
+            className="px-4 py-1.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Update'}
+          </button>
+        </div>
+      </Card>
+
+      {/* Exemptions */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-semibold text-gray-700">Active Exemptions</h3>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
+        >
+          <Plus size={14} /> Grant Exemption
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleGrantExemption} className="bg-white rounded-lg border p-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">User Email</label>
+              <input
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full px-2.5 py-1.5 border rounded text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                placeholder="user@example.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Extra Pages</label>
+              <input
+                type="number"
+                min={1}
+                value={form.extraPages}
+                onChange={(e) => setForm({ ...form, extraPages: e.target.value })}
+                className="w-full px-2.5 py-1.5 border rounded text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                placeholder="50"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Reason</label>
+              <input
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                className="w-full px-2.5 py-1.5 border rounded text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                placeholder="Exam preparation"
+              />
+            </div>
+          </div>
+          {formError && <p className="text-xs text-red-600">{formError}</p>}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="px-4 py-1.5 bg-primary-600 text-white rounded text-sm font-medium hover:bg-primary-700"
+            >
+              Grant
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {exemptions.length === 0 ? (
+        <p className="text-center text-gray-400 py-8">No active exemptions</p>
+      ) : (
+        <div className="space-y-2">
+          {exemptions.map((ex: any) => (
+            <div key={ex.id} className="bg-white rounded-lg border p-4 flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{ex.user_email}</p>
+                <p className="text-xs text-gray-500">
+                  +{ex.extra_pages} pages · Granted by {ex.granted_by}
+                  {ex.reason && ` · ${ex.reason}`}
+                </p>
+                <p className="text-xs text-gray-400">Expires: {ex.expires_at}</p>
+              </div>
+              <button
+                onClick={() => handleRevoke(ex.id)}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                title="Revoke"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
         </div>
