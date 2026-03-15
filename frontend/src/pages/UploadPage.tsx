@@ -14,6 +14,7 @@ import {
   X,
   Printer,
   AlertTriangle,
+  IndianRupee,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/I18nContext';
 
@@ -48,6 +49,12 @@ export default function UploadPage() {
   const [scheduledAt, setScheduledAt] = useState('');
   const [selectedPrinter, setSelectedPrinter] = useState('auto');
   const [printers, setPrinters] = useState<Array<{ name: string; online: boolean; status: string; accepting: boolean }>>([]);
+  const [pricingConfig, setPricingConfig] = useState<{ bwPerPage: number; colorPerPage: number; duplexDiscount: number } | null>(null);
+
+  // Fetch pricing config on mount
+  useEffect(() => {
+    api.getPricingConfig().then(setPricingConfig).catch(() => {});
+  }, []);
 
   // Fetch available printers when files are selected
   useEffect(() => {
@@ -144,6 +151,14 @@ export default function UploadPage() {
   const availablePaperSizes = status?.capabilities?.paperSizes || PAPER_SIZES;
   const canDuplex = status?.capabilities?.duplex ?? true;
   const canColor = status?.capabilities?.color ?? true;
+
+  // Client-side price estimation
+  const estimatedPrice = pricingConfig ? (() => {
+    // Without file page count, we can't estimate accurately; show per-page price
+    const pricePerPage = color === 'color' ? pricingConfig.colorPerPage : pricingConfig.bwPerPage;
+    const duplexMul = duplex ? pricingConfig.duplexDiscount : 1;
+    return { pricePerPage, duplexMul, copies, perPageFinal: Math.ceil(pricePerPage * duplexMul) };
+  })() : null;
 
   return (
     <div className="space-y-6">
@@ -431,6 +446,48 @@ export default function UploadPage() {
 
         {error && (
           <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
+        )}
+
+        {/* Cost Estimator */}
+        {files.length > 0 && estimatedPrice && (
+          <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 rounded-xl border border-primary-200 dark:border-primary-800 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <IndianRupee size={18} className="text-primary-600" />
+              <h3 className="text-sm font-semibold text-primary-800 dark:text-primary-300">Estimated Cost</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Per page</p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  ₹{(estimatedPrice.pricePerPage / 100).toFixed(2)}
+                </p>
+              </div>
+              {duplex && (
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Duplex discount</p>
+                  <p className="font-semibold text-green-600 dark:text-green-400">
+                    {Math.round((1 - estimatedPrice.duplexMul) * 100)}% off
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Effective rate</p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  ₹{(estimatedPrice.perPageFinal / 100).toFixed(2)}/pg
+                  {copies > 1 && ` × ${copies} copies`}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Mode</p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">
+                  {color === 'color' ? 'Color' : 'B&W'}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Final price calculated after upload based on page count
+            </p>
+          </div>
         )}
 
         {/* Submit */}

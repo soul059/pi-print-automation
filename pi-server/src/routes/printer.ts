@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getPrinterStatus, listPrinters, getAllPrinterStatuses } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
 import { getQueueDepth, getEstimatedWaitMinutes } from '../services/queue';
+import { env } from '../config/env';
 
 export const printerRouter = Router();
 
@@ -20,6 +21,16 @@ printerRouter.get('/list', async (_req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ printers: [], error: err.message });
   }
+});
+
+// Public: pricing config for client-side cost estimation
+printerRouter.get('/pricing', (_req: Request, res: Response) => {
+  res.json({
+    bwPerPage: env.PRICE_BW_PER_PAGE,
+    colorPerPage: env.PRICE_COLOR_PER_PAGE,
+    duplexDiscount: env.DUPLEX_DISCOUNT,
+    currency: 'INR',
+  });
 });
 
 printerRouter.get('/status', async (_req: Request, res: Response) => {

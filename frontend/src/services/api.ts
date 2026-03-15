@@ -69,6 +69,12 @@ export const api = {
     return res.json();
   },
 
+  // Pricing config
+  async getPricingConfig() {
+    const res = await fetch(`${API_BASE}/api/printer/pricing`);
+    return res.json();
+  },
+
   // Payment
   async createPayment(jobId: string, token: string) {
     const res = await fetch(`${API_BASE}/api/payment/create`, {
