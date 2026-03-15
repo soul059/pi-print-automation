@@ -15,7 +15,10 @@ import {
   Receipt,
   RotateCcw,
   PackageCheck,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
+import PdfPreview from '../components/PdfPreview';
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string; description: string }> = {
   uploaded: {
@@ -69,6 +72,7 @@ export default function StatusPage() {
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [collectingJob, setCollectingJob] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const isQueued = job?.status === 'paid' || job?.status === 'printing';
   const { position, estimatedWait } = useQueuePosition(jobId, isQueued);
@@ -318,6 +322,24 @@ td:last-child{text-align:right;font-weight:500}
           </button>
         )}
       </div>
+
+      {/* PDF Preview */}
+      {jobId && token && job.totalPages > 0 && (
+        <div>
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className="w-full flex items-center justify-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl py-3 transition"
+          >
+            {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showPreview ? 'Hide Preview' : 'View Document'}
+          </button>
+          {showPreview && (
+            <div className="mt-3">
+              <PdfPreview jobId={jobId} token={token} totalPages={job.totalPages} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3">
         {job.status === 'completed' && !job.collectedAt && (
