@@ -43,7 +43,7 @@ export async function processRefund(jobId: string): Promise<{ success: boolean; 
         return { success: true, refundId: payment.refund_id };
       }
 
-      refundToWallet(job.user_email, payment.amount, jobId, `Refund for failed print: ${job.file_name}`);
+      refundToWallet(job.user_email, payment.amount, `refund_${jobId}`, `Refund for failed print: ${job.file_name}`);
 
       db.prepare(
         `UPDATE payments SET refund_status = 'refunded', refund_id = ?, updated_at = datetime('now') WHERE id = ?`
