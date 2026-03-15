@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { AdminProvider, useAdmin } from './hooks/useAdmin';
 import { I18nProvider } from './i18n/I18nContext';
@@ -33,6 +34,7 @@ export default function App() {
       <AuthProvider>
         <AdminProvider>
           <Layout>
+          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
           <AnnouncementBanner />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
