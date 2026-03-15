@@ -54,33 +54,7 @@ For departments that print the same documents regularly (e.g., weekly attendance
 
 ---
 
-## 5. Print Preview
-**Priority:** Medium  
-**Effort:** Medium
-
-Show a visual preview of the PDF before payment so students can verify they uploaded the right document and page range is correct.
-
-- PDF.js viewer embedded in the payment page
-- Page range highlighting
-- Thumbnail grid view
-- Mobile-optimized viewer
-
----
-
-## 6. Printer Health Alerts
-**Priority:** Medium  
-**Effort:** Small
-
-Proactive notifications when printer issues are detected (low ink, paper jam, offline) — push to admin via email/webhook and show banner to users.
-
-- Threshold-based alerts (ink < 10%, paper out)
-- Admin notification channel (email, Slack webhook, Discord)
-- Auto-pause queue when critical issue detected
-- Historical uptime tracking
-
----
-
-## 7. Multi-Language Support Expansion
+## 5. Multi-Language Support Expansion
 **Priority:** Low  
 **Effort:** Small
 
@@ -92,7 +66,7 @@ The i18n system is already in place. Add more language translations beyond the c
 
 ---
 
-## 8. Printer Load Balancing
+## 6. Printer Load Balancing
 **Priority:** High (when multiple printers deployed)  
 **Effort:** Medium
 
@@ -105,7 +79,7 @@ When "auto" printer is selected with multiple printers available, intelligently 
 
 ---
 
-## 9. Student ID Card Integration
+## 7. Student ID Card Integration
 **Priority:** Low  
 **Effort:** Large
 
@@ -118,7 +92,7 @@ Instead of email OTP, allow students to authenticate by tapping their campus ID 
 
 ---
 
-## 10. Print Job Templates
+## 8. Print Job Templates
 **Priority:** Low  
 **Effort:** Small
 
