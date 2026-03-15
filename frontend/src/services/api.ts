@@ -112,6 +112,14 @@ export const api = {
     return res.json();
   },
 
+  // Receipt
+  async getReceipt(jobId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/receipt`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
   // Admin
   async adminLogin(username: string, password: string) {
     const res = await fetch(`${API_BASE}/api/admin/login`, {

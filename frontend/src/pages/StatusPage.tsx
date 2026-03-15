@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   RefreshCw,
   CalendarClock,
+  Receipt,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string; description: string }> = {
@@ -219,6 +220,72 @@ export default function StatusPage() {
         >
           <RefreshCw size={14} /> Refresh Status
         </button>
+
+        {(job.status === 'completed' || job.status === 'failed_permanent') && (
+          <button
+            onClick={async () => {
+              if (!token || !jobId) return;
+              try {
+                const data = await api.getReceipt(jobId, token);
+                if (data.error) return;
+                const r = data.receipt;
+                const html = `<!DOCTYPE html>
+<html><head><title>Print Receipt - ${r.jobId}</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:40px auto;padding:20px;color:#1a1a1a}
+h1{font-size:18px;text-align:center;margin-bottom:4px}
+.subtitle{text-align:center;color:#666;font-size:12px;margin-bottom:24px}
+.divider{border-top:1px dashed #ccc;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:6px 0;vertical-align:top}
+td:first-child{color:#666;width:40%}
+td:last-child{text-align:right;font-weight:500}
+.total{font-size:18px;font-weight:700;color:#059669}
+.status{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.completed{background:#dcfce7;color:#166534}
+.failed_permanent{background:#fee2e2;color:#991b1b}
+.refunded{background:#dbeafe;color:#1e40af}
+.footer{text-align:center;color:#999;font-size:10px;margin-top:24px}
+@media print{body{margin:0;padding:10px}}
+</style></head><body>
+<h1>🖨️ Print Receipt</h1>
+<p class="subtitle">Campus Print Service</p>
+<div class="divider"></div>
+<table>
+<tr><td>Job ID</td><td style="font-family:monospace;font-size:11px">${r.jobId}</td></tr>
+<tr><td>Status</td><td><span class="status ${r.status}">${r.status === 'completed' ? '✓ Completed' : '✗ Failed'}</span>${r.refundStatus === 'refunded' ? ' <span class="status refunded">Refunded</span>' : ''}</td></tr>
+<tr><td>Name</td><td>${r.userName}</td></tr>
+<tr><td>Email</td><td>${r.userEmail}</td></tr>
+</table>
+<div class="divider"></div>
+<table>
+<tr><td>File</td><td>${r.fileName}</td></tr>
+<tr><td>Pages</td><td>${r.totalPages} (${r.printPages})</td></tr>
+<tr><td>Copies</td><td>${r.copies}</td></tr>
+<tr><td>Paper</td><td>${r.paperSize}</td></tr>
+<tr><td>Color</td><td>${r.color === 'color' ? 'Color' : 'B&W'}</td></tr>
+<tr><td>Duplex</td><td>${r.duplex ? 'Yes' : 'No'}</td></tr>
+<tr><td>Mode</td><td>${r.printMode === 'later' ? 'Collect Later' : 'Print Now'}</td></tr>
+<tr><td>Printer</td><td>${r.printerName}</td></tr>
+</table>
+<div class="divider"></div>
+<table>
+<tr><td>Payment</td><td>${r.paymentType === 'wallet' ? 'Wallet' : 'Razorpay'}${r.paymentId ? ' (' + r.paymentId + ')' : ''}</td></tr>
+<tr><td>Date</td><td>${new Date(r.createdAt).toLocaleString('en-IN')}</td></tr>
+<tr><td style="font-size:14px">Amount</td><td class="total">₹${(r.price / 100).toFixed(2)}</td></tr>
+</table>
+<div class="divider"></div>
+<p class="footer">Generated on ${new Date().toLocaleString('en-IN')}<br>This is a computer-generated receipt.</p>
+</body></html>`;
+                const w = window.open('', '_blank');
+                if (w) { w.document.write(html); w.document.close(); }
+              } catch { /* ignore */ }
+            }}
+            className="flex items-center gap-2 mx-auto text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition"
+          >
+            <Receipt size={14} /> Download Receipt
+          </button>
+        )}
       </div>
 
       <Link

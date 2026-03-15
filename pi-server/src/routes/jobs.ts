@@ -63,6 +63,51 @@ jobsRouter.get('/export', requireAuth, (req: AuthRequest, res: Response) => {
   res.send(header + rows);
 });
 
+jobsRouter.get('/:jobId/receipt', requireAuth, (req: AuthRequest, res: Response) => {
+  const job = getJob(req.params.jobId as string);
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+  if (job.user_email !== req.userEmail) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return;
+  }
+  if (job.status !== 'completed' && job.status !== 'failed_permanent') {
+    res.status(400).json({ error: 'Receipt available only for completed or permanently failed jobs' });
+    return;
+  }
+
+  const db = getDb();
+  const payment = db.prepare(
+    'SELECT razorpay_payment_id, payment_type, refund_status FROM payments WHERE job_id = ?'
+  ).get(job.id) as any;
+
+  res.json({
+    receipt: {
+      jobId: job.id,
+      status: job.status,
+      userName: job.user_name,
+      userEmail: job.user_email,
+      fileName: job.file_name,
+      totalPages: job.total_pages,
+      printPages: job.print_pages || 'All',
+      paperSize: job.paper_size,
+      copies: job.copies,
+      duplex: job.duplex === 1,
+      color: job.color,
+      printMode: job.print_mode,
+      printerName: job.printer_name || 'Auto',
+      price: job.price,
+      paymentId: payment?.razorpay_payment_id || null,
+      paymentType: payment?.payment_type || null,
+      refundStatus: payment?.refund_status || null,
+      createdAt: job.created_at,
+      completedAt: job.updated_at,
+    },
+  });
+});
+
 jobsRouter.get('/:jobId', requireAuth, (req: AuthRequest, res: Response) => {
   const job = getJob(req.params.jobId as string);
   if (!job) {
