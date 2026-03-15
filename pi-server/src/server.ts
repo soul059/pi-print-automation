@@ -11,6 +11,18 @@ import fs from 'fs';
 import path from 'path';
 
 async function main() {
+  // Security: block startup with default secrets in production
+  if (env.NODE_ENV === 'production') {
+    const fatal: string[] = [];
+    if (env.JWT_SECRET === 'dev-secret-change-in-production') fatal.push('JWT_SECRET');
+    if (env.ADMIN_TOKEN === 'change-me-in-production') fatal.push('ADMIN_TOKEN');
+    if (!env.RAZORPAY_WEBHOOK_SECRET) fatal.push('RAZORPAY_WEBHOOK_SECRET');
+    if (fatal.length > 0) {
+      logger.fatal({ missing: fatal }, 'REFUSING TO START: insecure default secrets detected. Set these env vars before running in production.');
+      process.exit(1);
+    }
+  }
+
   // Ensure upload directory exists
   if (!fs.existsSync(env.UPLOAD_DIR)) {
     fs.mkdirSync(env.UPLOAD_DIR, { recursive: true });

@@ -295,10 +295,10 @@ adminRouter.post('/jobs/:jobId/cancel', async (req: Request<{jobId: string}>, re
   } else if (job.status === 'failed') {
     transitionJob(job.id, 'failed_permanent');
   } else {
-    // uploaded — no payment yet, just mark directly
-    db.prepare(
-      "UPDATE jobs SET status = 'failed_permanent', error_message = 'Cancelled by admin', updated_at = datetime('now') WHERE id = ?"
-    ).run(job.id);
+    // uploaded — no payment yet, cancel via state machine
+    transitionJob(job.id, 'failed_permanent');
+    const db = getDb();
+    db.prepare("UPDATE jobs SET error_message = 'Cancelled by admin' WHERE id = ?").run(job.id);
   }
 
   // Verify final state

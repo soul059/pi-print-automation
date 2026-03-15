@@ -39,12 +39,12 @@ export interface Job {
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
-  uploaded: ['payment_pending'],
-  payment_pending: ['paid', 'failed'],
+  uploaded: ['payment_pending', 'failed_permanent'], // failed_permanent = admin cancel
+  payment_pending: ['paid', 'failed', 'uploaded'], // 'uploaded' = rollback on payment failure
   paid: ['printing'],
   printing: ['completed', 'failed'],
   completed: [],
-  failed: ['paid', 'printing', 'failed_permanent'],
+  failed: ['paid', 'failed_permanent'],
   failed_permanent: [],
 };
 

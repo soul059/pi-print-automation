@@ -33,6 +33,15 @@ export function creditWallet(
   const db = getDb();
   getOrCreateWallet(email);
 
+  // Idempotency guard: skip if transaction with same reference already exists
+  const existing = db.prepare(
+    'SELECT id FROM wallet_transactions WHERE reference_id = ? AND user_email = ?'
+  ).get(referenceId, email);
+  if (existing) {
+    const wallet = db.prepare('SELECT balance FROM wallets WHERE user_email = ?').get(email) as { balance: number };
+    return { balance: wallet.balance };
+  }
+
   db.prepare(
     "UPDATE wallets SET balance = balance + ?, updated_at = datetime('now') WHERE user_email = ?"
   ).run(amount, email);
@@ -86,6 +95,15 @@ export function refundToWallet(
 ): { balance: number } {
   const db = getDb();
   getOrCreateWallet(email);
+
+  // Idempotency guard: skip if refund with same reference already exists
+  const existing = db.prepare(
+    "SELECT id FROM wallet_transactions WHERE reference_id = ? AND user_email = ? AND type = 'refund'"
+  ).get(referenceId, email);
+  if (existing) {
+    const wallet = db.prepare('SELECT balance FROM wallets WHERE user_email = ?').get(email) as { balance: number };
+    return { balance: wallet.balance };
+  }
 
   db.prepare(
     "UPDATE wallets SET balance = balance + ?, updated_at = datetime('now') WHERE user_email = ?"
