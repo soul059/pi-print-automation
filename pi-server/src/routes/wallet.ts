@@ -104,7 +104,8 @@ walletRouter.post('/topup/verify', requireAuth, async (req: AuthRequest, res: Re
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (expectedSignature !== razorpay_signature) {
+    if (expectedSignature.length !== razorpay_signature.length ||
+        !crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(razorpay_signature, 'hex'))) {
       res.status(400).json({ error: 'Payment verification failed - invalid signature' });
       return;
     }

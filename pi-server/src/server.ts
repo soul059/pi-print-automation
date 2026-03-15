@@ -5,6 +5,7 @@ import { runMigrations } from './db/migrations';
 import { initDb, closeDb } from './db/connection';
 import { startJobRecovery } from './services/queue';
 import { startScheduler, stopScheduler } from './services/scheduler';
+import { startCleanup, stopCleanup } from './services/cleanup';
 import fs from 'fs';
 import path from 'path';
 
@@ -32,6 +33,9 @@ async function main() {
   // Start scheduler for scheduled print jobs
   startScheduler();
 
+  // Start file cleanup service
+  startCleanup();
+
   // Start server
   httpServer.listen(env.PORT, () => {
     logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Print server started');
@@ -41,6 +45,7 @@ async function main() {
   const shutdown = () => {
     logger.info('Shutting down...');
     stopScheduler();
+    stopCleanup();
     httpServer.close(() => {
       closeDb();
       process.exit(0);

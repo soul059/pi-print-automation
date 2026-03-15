@@ -62,7 +62,7 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
     if (!printerStatus.online) {
       // Rollback: transition back so user can try again
       const db0 = getDb();
-      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
+      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ? AND status = 'payment_pending'").run(job.id);
       res.status(503).json({
         error: 'Printer is offline',
         printerStatus,
@@ -73,7 +73,7 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
 
     if (!printerStatus.accepting) {
       const db0 = getDb();
-      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
+      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ? AND status = 'payment_pending'").run(job.id);
       res.status(503).json({
         error: 'Printer is not accepting jobs',
         printerStatus,
@@ -98,7 +98,7 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
     } catch (rzErr: any) {
       // Rollback on Razorpay failure
       const db0 = getDb();
-      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
+      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ? AND status = 'payment_pending'").run(job.id);
       throw rzErr;
     }
 
@@ -139,7 +139,8 @@ paymentRouter.post('/verify', requireAuth, async (req: AuthRequest, res: Respons
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (expectedSignature !== razorpay_signature) {
+    if (expectedSignature.length !== razorpay_signature.length ||
+        !crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(razorpay_signature, 'hex'))) {
       res.status(400).json({ error: 'Payment verification failed - invalid signature' });
       return;
     }
@@ -234,7 +235,7 @@ paymentRouter.post('/wallet', requireAuth, async (req: AuthRequest, res: Respons
       transitionJob(job.id, 'failed', 'Insufficient wallet balance');
       // Also reset back to uploaded for retry with different payment method
       const db2 = getDb();
-      db2.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
+      db2.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ? AND status = 'payment_pending'").run(job.id);
       res.status(400).json({ error: 'Insufficient wallet balance', balance: debitResult.balance });
       return;
     }
@@ -284,7 +285,8 @@ paymentRouter.post('/webhook', async (req: Request, res: Response) => {
       .update(rawBody)
       .digest('hex');
 
-    if (expectedSignature !== receivedSignature) {
+    if (expectedSignature.length !== receivedSignature.length ||
+        !crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(receivedSignature, 'hex'))) {
       logger.warn('Webhook signature mismatch');
       res.status(400).json({ error: 'Invalid webhook signature' });
       return;
