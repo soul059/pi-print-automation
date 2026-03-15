@@ -27,10 +27,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
+  Upload,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-type Tab = 'overview' | 'jobs' | 'policies' | 'limits';
+type Tab = 'overview' | 'jobs' | 'policies' | 'limits' | 'quickprint';
 
 function formatTime(raw: string | undefined): string {
   if (!raw) return '—';
@@ -82,6 +83,7 @@ export default function AdminDashboardPage() {
           { id: 'jobs', label: 'Jobs', icon: FileText },
           { id: 'policies', label: 'Email Policies', icon: Shield },
           { id: 'limits', label: 'Print Limits', icon: Gauge },
+          { id: 'quickprint', label: 'Quick Print', icon: Upload },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -116,6 +118,7 @@ export default function AdminDashboardPage() {
       {tab === 'jobs' && <JobsTab token={token!} />}
       {tab === 'policies' && <PoliciesTab token={token!} />}
       {tab === 'limits' && <LimitsTab token={token!} />}
+      {tab === 'quickprint' && <QuickPrintTab token={token!} />}
     </div>
   );
 }
@@ -959,6 +962,96 @@ function LoadingSpinner() {
   return (
     <div className="flex justify-center py-12">
       <Loader2 size={28} className="animate-spin text-primary-500" />
+    </div>
+  );
+}
+
+function QuickPrintTab({ token }: { token: string }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [paperSize, setPaperSize] = useState('A4');
+  const [copies, setCopies] = useState(1);
+  const [duplex, setDuplex] = useState(false);
+  const [color, setColor] = useState('grayscale');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) { toast.error('Select a PDF file'); return; }
+    setLoading(true);
+    setResult(null);
+    try {
+      const data = await api.adminDirectPrint(file, { paperSize, copies, duplex, color }, token);
+      if (data.error) { toast.error(data.error); }
+      else { toast.success('Job queued!'); setResult(data); setFile(null); }
+    } catch { toast.error('Failed to submit'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6">
+      <h2 className="text-lg font-semibold dark:text-white mb-4 flex items-center gap-2">
+        <Printer size={20} /> Admin Quick Print
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        Upload and print directly — no payment required. Jobs are queued immediately.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+        <div>
+          <label className="block text-sm font-medium dark:text-gray-200 mb-1">PDF File</label>
+          <input
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 dark:file:bg-primary-900 file:text-primary-700 dark:file:text-primary-300 hover:file:bg-primary-100"
+          />
+          {file && <p className="mt-1 text-xs text-gray-400">{file.name} ({(file.size / 1024).toFixed(0)} KB)</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium dark:text-gray-200 mb-1">Paper Size</label>
+            <select value={paperSize} onChange={(e) => setPaperSize(e.target.value)} className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white">
+              <option value="A4">A4</option>
+              <option value="A3">A3</option>
+              <option value="Letter">Letter</option>
+              <option value="Legal">Legal</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium dark:text-gray-200 mb-1">Copies</label>
+            <input type="number" min={1} max={100} value={copies} onChange={(e) => setCopies(parseInt(e.target.value) || 1)} className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white" />
+          </div>
+        </div>
+
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm dark:text-gray-200">
+            <input type="checkbox" checked={duplex} onChange={(e) => setDuplex(e.target.checked)} className="rounded" />
+            Duplex (2-sided)
+          </label>
+          <label className="flex items-center gap-2 text-sm dark:text-gray-200">
+            <input type="checkbox" checked={color === 'color'} onChange={(e) => setColor(e.target.checked ? 'color' : 'grayscale')} className="rounded" />
+            Color
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || !file}
+          className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />}
+          {loading ? 'Submitting...' : 'Print Now'}
+        </button>
+      </form>
+
+      {result && (
+        <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm">
+          <p className="font-medium text-green-800 dark:text-green-300">✓ {result.message}</p>
+          <p className="text-green-600 dark:text-green-400 mt-1">Job ID: <span className="font-mono">{result.jobId}</span></p>
+        </div>
+      )}
     </div>
   );
 }

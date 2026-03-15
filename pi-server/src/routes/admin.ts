@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import path from 'path';
+import { nanoid } from 'nanoid';
 import { requireAdmin, generateAdminToken } from '../middleware/auth';
 import { getAllPolicies, createPolicy, updatePolicy, deletePolicy } from '../services/policy';
-import { getAllJobs, transitionJob, getJob } from '../models/job';
+import { getAllJobs, transitionJob, getJob, createJob } from '../models/job';
 import { getPrinterStatus, getAllPrinterStatuses, enablePrinter, disablePrinter, listPrinters, cancelJob } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
 import { enqueueJob, getQueueDepth } from '../services/queue';
@@ -10,9 +13,29 @@ import { processRefund } from '../services/refund';
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
 import { getDailyPageLimit, setDailyPageLimit } from '../services/limits';
+import { validatePdf, getPageCount } from '../services/pdf';
 import os from 'os';
 import fs from 'fs';
 import { env } from '../config/env';
+
+// Multer for admin uploads
+const adminStorage = multer.diskStorage({
+  destination: env.UPLOAD_DIR,
+  filename: (_req, file, cb) => {
+    cb(null, `admin_${nanoid(12)}${path.extname(file.originalname)}`);
+  },
+});
+const adminUpload = multer({
+  storage: adminStorage,
+  limits: { fileSize: env.MAX_FILE_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      cb(new Error('Only PDF files are allowed'));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 export const adminRouter = Router();
 
@@ -679,5 +702,61 @@ adminRouter.delete('/exemptions/:id', (req: Request<{id: string}>, res: Response
   } catch (err: any) {
     logger.error({ err: err.message }, 'Failed to revoke exemption');
     res.status(500).json({ error: 'Failed to revoke exemption' });
+  }
+});
+
+// --- Admin Direct Print (skip payment) ---
+
+adminRouter.post('/print', adminUpload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'PDF file required' });
+      return;
+    }
+
+    const { paperSize, copies, duplex, color, printerName } = req.body;
+
+    const isValid = await validatePdf(file.path);
+    if (!isValid) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ error: 'Invalid PDF file' });
+      return;
+    }
+
+    const pageCount = await getPageCount(file.path);
+    const adminReq = req as any;
+    const adminUser = adminReq.adminUsername || 'admin';
+
+    const job = createJob({
+      userEmail: `${adminUser}@admin.local`,
+      userName: `Admin: ${adminUser}`,
+      fileName: file.originalname,
+      filePath: file.path,
+      totalPages: pageCount,
+      paperSize: paperSize || 'A4',
+      copies: parseInt(copies, 10) || 1,
+      duplex: duplex === 'true' || duplex === true,
+      color: color === 'color' ? 'color' : 'grayscale',
+      printMode: 'now',
+      price: 0,
+      printerName: printerName || undefined,
+    });
+
+    // Skip payment — go directly to paid state
+    transitionJob(job.id, 'payment_pending');
+    transitionJob(job.id, 'paid');
+    enqueueJob(job.id);
+
+    logger.info({ jobId: job.id, admin: adminUser, file: file.originalname }, 'Admin direct print queued');
+
+    res.json({
+      jobId: job.id,
+      status: 'paid',
+      message: 'Job queued for printing (admin bypass)',
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Admin direct print failed');
+    res.status(500).json({ error: 'Failed to queue print job' });
   }
 });

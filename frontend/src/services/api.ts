@@ -172,6 +172,22 @@ export const api = {
     return res.json();
   },
 
+  async adminDirectPrint(file: File, options: { paperSize?: string; copies?: number; duplex?: boolean; color?: string; printerName?: string }, token: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options.paperSize) formData.append('paperSize', options.paperSize);
+    if (options.copies) formData.append('copies', String(options.copies));
+    if (options.duplex !== undefined) formData.append('duplex', String(options.duplex));
+    if (options.color) formData.append('color', options.color);
+    if (options.printerName) formData.append('printerName', options.printerName);
+    const res = await fetch(`${API_BASE}/api/admin/print`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    return res.json();
+  },
+
   async adminGetAnalytics(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/analytics`, {
       headers: { Authorization: `Bearer ${token}` },
