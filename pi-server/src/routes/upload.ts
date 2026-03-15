@@ -75,6 +75,7 @@ uploadRouter.get('/preview/:jobId', (req: AuthRequest, res: Response) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Referrer-Policy', 'no-referrer');
     res.sendFile(path.resolve(job.file_path));
   } catch (err: any) {
     logger.error({ err: err.message }, 'Preview failed');

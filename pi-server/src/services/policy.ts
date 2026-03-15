@@ -1,6 +1,15 @@
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
 
+// Simple ReDoS detection: reject patterns with nested quantifiers
+function isSafeRegex(pattern: string): boolean {
+  // Reject nested quantifiers like (a+)+, (a*)+, (a{1,})*
+  if (/(\+|\*|\{)\)?(\+|\*|\{)/.test(pattern)) return false;
+  // Reject patterns longer than 200 chars
+  if (pattern.length > 200) return false;
+  return true;
+}
+
 interface EmailPolicy {
   id: number;
   name: string;
@@ -39,6 +48,10 @@ export function validateEmail(email: string): EmailValidationResult {
 
   for (const policy of policies) {
     try {
+      if (!isSafeRegex(policy.pattern)) {
+        logger.warn({ policy: policy.name, pattern: policy.pattern }, 'Unsafe regex pattern skipped');
+        continue;
+      }
       const regex = new RegExp(policy.pattern);
       if (regex.test(localPart)) {
         // Extract year from first 2 digits if present
@@ -73,6 +86,15 @@ export function createPolicy(data: {
   departmentKey: string;
   active?: boolean;
 }): EmailPolicy {
+  // Validate regex is syntactically valid and safe from ReDoS
+  try {
+    new RegExp(data.pattern);
+  } catch {
+    throw new Error(`Invalid regex pattern: ${data.pattern}`);
+  }
+  if (!isSafeRegex(data.pattern)) {
+    throw new Error('Regex pattern rejected: potential ReDoS risk (nested quantifiers or excessive length)');
+  }
   const db = getDb();
   const result = db
     .prepare(

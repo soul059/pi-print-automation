@@ -134,11 +134,14 @@ jobsRouter.post('/:jobId/reprint', requireAuth, (req: AuthRequest, res: Response
   // Allow overriding some options
   const {
     paperSize = originalJob.paper_size,
-    copies = originalJob.copies,
+    copies: rawCopies = originalJob.copies,
     duplex = originalJob.duplex === 1,
     color = originalJob.color,
     printMode = originalJob.print_mode,
   } = req.body || {};
+
+  // Clamp copies to valid range [1, 50] — prevents free prints (0) and negative price exploits
+  const copies = Math.min(Math.max(Math.floor(Number(rawCopies)) || 1, 1), 50);
 
   const priceCalc = calculatePrice(
     originalJob.total_pages,

@@ -35,10 +35,13 @@ export async function processRefund(jobId: string): Promise<{ success: boolean; 
         return { success: false, error: 'Job not found for wallet refund' };
       }
 
-      // Mark as pending BEFORE crediting wallet — prevents double-credit on crash
-      db.prepare(
+      // Mark as pending BEFORE crediting wallet — prevents double-credit on crash/race
+      const markPending = db.prepare(
         `UPDATE payments SET refund_status = 'pending', updated_at = datetime('now') WHERE id = ? AND refund_status IS NULL`
       ).run(payment.id);
+      if ((markPending as any).changes === 0) {
+        return { success: true, refundId: payment.refund_id };
+      }
 
       refundToWallet(job.user_email, payment.amount, jobId, `Refund for failed print: ${job.file_name}`);
 

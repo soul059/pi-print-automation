@@ -186,12 +186,16 @@ authRouter.post('/refresh', refreshLimiter, (req: Request, res: Response) => {
     return;
   }
 
-  // Issue new short-lived access token (refresh token stays the same until expiry)
+  // Rotate: revoke old token and issue a new one
+  revokeRefreshToken(refreshToken);
+  const { refreshToken: newRefreshToken } = generateRefreshToken(user.email, user.name);
+
   const newAccessToken = generateToken(user.email, user.name);
-  logger.info({ email: user.email }, 'Token refreshed');
+  logger.info({ email: user.email }, 'Token refreshed with rotation');
 
   res.json({
     token: newAccessToken,
+    refreshToken: newRefreshToken,
     email: user.email,
     name: user.name,
   });

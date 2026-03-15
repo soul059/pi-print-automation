@@ -30,6 +30,9 @@ export function creditWallet(
   referenceId: string,
   description: string
 ): { balance: number } {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error('Amount must be a positive integer');
+  }
   const db = getDb();
   getOrCreateWallet(email);
 
@@ -61,6 +64,9 @@ export function debitWallet(
   referenceId: string,
   description: string
 ): { success: boolean; balance: number } {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    return { success: false, balance: getBalance(email) };
+  }
   const db = getDb();
   const currentBalance = getBalance(email);
 
@@ -93,6 +99,9 @@ export function refundToWallet(
   referenceId: string,
   description: string
 ): { balance: number } {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error('Refund amount must be a positive integer');
+  }
   const db = getDb();
   getOrCreateWallet(email);
 

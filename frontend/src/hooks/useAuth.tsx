@@ -21,7 +21,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 // Track refresh-in-progress to prevent concurrent refreshes
 let refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(refreshToken: string): Promise<{ token: string; email: string; name: string } | null> {
+async function refreshAccessToken(refreshToken: string): Promise<{ token: string; email: string; name: string; refreshToken?: string } | null> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (result) {
           const newState: AuthState = {
             token: result.token,
-            refreshToken: current.refreshToken,
+            refreshToken: result.refreshToken || current.refreshToken,
             email: result.email,
             name: result.name,
             isAuthenticated: true,

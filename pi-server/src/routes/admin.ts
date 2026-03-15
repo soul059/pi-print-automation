@@ -297,8 +297,21 @@ adminRouter.post('/jobs/:jobId/cancel', async (req: Request<{jobId: string}>, re
   } else {
     // uploaded — no payment yet, cancel via state machine
     transitionJob(job.id, 'failed_permanent');
-    const db = getDb();
-    db.prepare("UPDATE jobs SET error_message = 'Cancelled by admin' WHERE id = ?").run(job.id);
+    const db2 = getDb();
+    db2.prepare("UPDATE jobs SET error_message = 'Cancelled by admin' WHERE id = ?").run(job.id);
+  }
+
+  // Auto-refund cancelled jobs that had a captured payment
+  const updatedJob = getJob(job.id);
+  if (updatedJob?.status === 'failed_permanent') {
+    const payment = db.prepare(
+      "SELECT * FROM payments WHERE job_id = ? AND status = 'captured' AND (refund_status IS NULL OR refund_status = 'failed') ORDER BY created_at DESC LIMIT 1"
+    ).get(job.id) as any;
+    if (payment) {
+      processRefund(job.id).catch(err => {
+        logger.error({ jobId: job.id, err: err.message }, 'Auto-refund after admin cancel failed');
+      });
+    }
   }
 
   // Verify final state
@@ -852,7 +865,8 @@ adminRouter.get('/maintenance', (req: Request, res: Response) => {
     const countRow = db.prepare('SELECT COUNT(*) as total FROM maintenance_log').get() as any;
     res.json({ entries: rows, total: countRow?.total ?? 0 });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err: err.message }, 'Maintenance list failed');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -877,7 +891,8 @@ adminRouter.post('/maintenance', (req: Request, res: Response) => {
     ).run(printerName || null, eventType, description.slice(0, 500), adminEmail);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err: err.message }, 'Maintenance create failed');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -890,7 +905,8 @@ adminRouter.delete('/maintenance/:id', (req: Request, res: Response) => {
     db.prepare('DELETE FROM maintenance_log WHERE id = ?').run(id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err: err.message }, 'Maintenance delete failed');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -905,7 +921,8 @@ adminRouter.post('/telegram/test', async (_req: Request, res: Response) => {
     const sent = await telegram.customAlert('Test Alert', 'This is a test notification from the print server admin panel.');
     res.json({ success: sent, message: sent ? 'Test message sent!' : 'Failed to send' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err: err.message }, 'Telegram test failed');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
