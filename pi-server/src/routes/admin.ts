@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { nanoid } from 'nanoid';
@@ -41,6 +42,15 @@ const adminUpload = multer({
 
 export const adminRouter = Router();
 
+// Rate limiter for admin login — prevents brute-force attacks
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function escapeCsvField(value: string): string {
   if (value == null) return '';
   const str = String(value);
@@ -53,7 +63,7 @@ function escapeCsvField(value: string): string {
 
 // --- Admin Login (public, no auth required) ---
 
-adminRouter.post('/login', async (req: Request, res: Response) => {
+adminRouter.post('/login', adminLoginLimiter, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {

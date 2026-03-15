@@ -10,6 +10,7 @@ import { getDb } from '../db/connection';
 import { getPrinterStatus } from '../services/cups';
 import { enqueueJob } from '../services/queue';
 import { debitWallet } from '../services/wallet';
+import { processRefund } from '../services/refund';
 import { nanoid } from 'nanoid';
 
 export const paymentRouter = Router();
@@ -178,11 +179,30 @@ paymentRouter.post('/verify', paymentCreateLimiter, requireAuth, async (req: Aut
       return;
     }
 
-    // Update payment
-    db.prepare(
+    // Prevent replay: only process if payment hasn't been captured yet
+    if (payment.status === 'captured') {
+      res.json({ success: true, jobId: payment.job_id, status: 'paid' });
+      return;
+    }
+
+    // Atomic: only update if still 'created' — prevents double-processing race
+    const paymentUpdate = db.prepare(
       `UPDATE payments SET razorpay_payment_id = ?, razorpay_signature = ?, status = 'captured', updated_at = datetime('now')
-       WHERE razorpay_order_id = ?`
+       WHERE razorpay_order_id = ? AND status = 'created'`
     ).run(razorpay_payment_id, razorpay_signature, razorpay_order_id);
+
+    if ((paymentUpdate as any).changes === 0) {
+      // Already processed by another concurrent request
+      res.json({ success: true, jobId: payment.job_id, status: 'paid' });
+      return;
+    }
+
+    // Only transition from payment_pending — prevents re-enqueue of failed jobs
+    const job = getJob(payment.job_id);
+    if (!job || job.status !== 'payment_pending') {
+      res.json({ success: true, jobId: payment.job_id, status: 'paid' });
+      return;
+    }
 
     // Transition job and enqueue for printing
     const transitioned = transitionJob(payment.job_id, 'paid');
@@ -363,6 +383,12 @@ paymentRouter.post('/webhook', webhookLimiter, async (req: Request, res: Respons
           }
           logger.info({ jobId: payment.job_id, scheduled: !!isScheduledForLater }, 'Webhook: payment verified, job processed');
         }
+      } else if (job && job.status === 'failed_permanent') {
+        // Job was cancelled after payment was captured — auto-refund
+        logger.info({ jobId: payment.job_id }, 'Webhook: job already cancelled, triggering auto-refund');
+        processRefund(payment.job_id).catch(refundErr =>
+          logger.error({ jobId: payment.job_id, err: refundErr.message }, 'Webhook auto-refund failed')
+        );
       }
     }
 

@@ -4,6 +4,7 @@ import { getJob, getJobsByEmail, createJob } from '../models/job';
 import { getDb } from '../db/connection';
 import { getQueuePosition } from '../services/queue';
 import { calculatePrice } from '../services/pricing';
+import { checkLimit } from '../services/limits';
 import fs from 'fs';
 
 export const jobsRouter = Router();
@@ -142,6 +143,19 @@ jobsRouter.post('/:jobId/reprint', requireAuth, (req: AuthRequest, res: Response
 
   // Clamp copies to valid range [1, 50] — prevents free prints (0) and negative price exploits
   const copies = Math.min(Math.max(Math.floor(Number(rawCopies)) || 1, 1), 50);
+
+  // Enforce daily page limit on reprints (same as upload)
+  const effectivePages = originalJob.total_pages * copies;
+  const limitResult = checkLimit(req.userEmail!, effectivePages);
+  if (!limitResult.allowed) {
+    res.status(403).json({
+      error: 'daily_limit_exceeded',
+      used: limitResult.used,
+      limit: limitResult.limit,
+      remaining: limitResult.remaining,
+    });
+    return;
+  }
 
   const priceCalc = calculatePrice(
     originalJob.total_pages,

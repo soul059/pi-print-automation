@@ -21,7 +21,7 @@ printerRouter.get('/list', async (_req: Request, res: Response) => {
       })),
     });
   } catch (err: any) {
-    res.status(500).json({ printers: [], error: err.message });
+    res.status(500).json({ printers: [] });
   }
 });
 
@@ -74,7 +74,6 @@ printerRouter.get('/status', async (_req: Request, res: Response) => {
     res.status(500).json({
       online: false,
       status: 'error',
-      error: err.message,
     });
   }
 });
@@ -86,7 +85,7 @@ printerRouter.get('/supplies', async (req: Request, res: Response) => {
     const supplies = await getSupplyLevels(printerName);
     res.json({ supplies });
   } catch (err: any) {
-    res.json({ supplies: [], error: err.message });
+    res.json({ supplies: [] });
   }
 });
 
@@ -156,6 +155,6 @@ printerRouter.get('/leaderboard', (_req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    res.json({ leaderboard: [], global: { totalJobs: 0, totalPages: 0 }, error: err.message });
+    res.json({ leaderboard: [], global: { totalJobs: 0, totalPages: 0 } });
   }
 });

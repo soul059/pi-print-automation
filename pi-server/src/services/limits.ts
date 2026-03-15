@@ -16,7 +16,7 @@ export function setDailyPageLimit(limit: number): void {
 export function getTodayPageCount(email: string): number {
   const db = getDb();
   const row = db.prepare(
-    "SELECT COALESCE(SUM(total_pages), 0) as total FROM jobs WHERE user_email = ? AND DATE(created_at) = DATE('now') AND status NOT IN ('failed', 'failed_permanent')"
+    "SELECT COALESCE(SUM(total_pages * copies), 0) as total FROM jobs WHERE user_email = ? AND DATE(created_at) = DATE('now') AND status NOT IN ('failed', 'failed_permanent')"
   ).get(email) as any;
   return row?.total ?? 0;
 }

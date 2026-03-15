@@ -125,9 +125,11 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
 }
 
 export function requireAdmin(req: AdminRequest, res: Response, next: NextFunction): void {
-  // Support legacy static token for scripts/API
-  const staticToken = req.headers['x-admin-token'];
-  if (staticToken === env.ADMIN_TOKEN) {
+  // Support legacy static token for scripts/API (timing-safe comparison)
+  const staticToken = req.headers['x-admin-token'] as string | undefined;
+  if (staticToken && env.ADMIN_TOKEN &&
+      staticToken.length === env.ADMIN_TOKEN.length &&
+      crypto.timingSafeEqual(Buffer.from(staticToken), Buffer.from(env.ADMIN_TOKEN))) {
     req.adminUsername = 'static-token';
     req.adminRole = 'admin';
     next();
