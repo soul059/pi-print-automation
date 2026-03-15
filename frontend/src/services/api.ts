@@ -125,6 +125,19 @@ export const api = {
     return res.json();
   },
 
+  async collectJob(jobId: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/collect`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async getCollectInfo(jobId: string) {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/collect-info`);
+    return res.json();
+  },
+
   // Receipt
   async getReceipt(jobId: string, token: string) {
     const res = await fetch(`${API_BASE}/api/jobs/${jobId}/receipt`, {

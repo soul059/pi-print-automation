@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { getJob, getJobsByEmail, createJob } from '../models/job';
+import { getJob, getJobsByEmail, createJob, markJobCollected } from '../models/job';
 import { getDb } from '../db/connection';
 import { getQueuePosition } from '../services/queue';
 import { calculatePrice } from '../services/pricing';
@@ -278,7 +278,56 @@ jobsRouter.get('/:jobId', requireAuth, (req: AuthRequest, res: Response) => {
     refundId: payment?.refund_id || null,
     queuePosition: (job.status === 'paid' || job.status === 'printing') ? getQueuePosition(job.id) : null,
     scheduledAt: job.scheduled_at || null,
+    collectedAt: job.collected_at || null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
+  });
+});
+
+// Mark job as collected (authenticated)
+jobsRouter.post('/:jobId/collect', requireAuth, (req: AuthRequest, res: Response) => {
+  const job = getJob(req.params.jobId as string);
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+
+  if (job.user_email !== req.userEmail) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  if (job.status !== 'completed') {
+    res.status(400).json({ error: 'Only completed jobs can be marked as collected' });
+    return;
+  }
+
+  if (job.collected_at) {
+    res.json({ success: true, message: 'Job already marked as collected', collectedAt: job.collected_at });
+    return;
+  }
+
+  const marked = markJobCollected(job.id);
+  if (!marked) {
+    res.status(400).json({ error: 'Failed to mark job as collected' });
+    return;
+  }
+
+  const updatedJob = getJob(job.id);
+  res.json({ success: true, collectedAt: updatedJob?.collected_at });
+});
+
+// Get collection info (public - for QR scan)
+jobsRouter.get('/:jobId/collect-info', (req, res: Response) => {
+  const job = getJob(req.params.jobId as string);
+  if (!job) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+
+  res.json({
+    jobId: job.id,
+    status: job.status,
+    collectedAt: job.collected_at || null,
   });
 });

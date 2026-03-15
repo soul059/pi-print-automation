@@ -49,7 +49,7 @@ export default function UploadPage() {
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [selectedPrinter, setSelectedPrinter] = useState('auto');
-  const [printers, setPrinters] = useState<Array<{ name: string; online: boolean; status: string; accepting: boolean }>>([]);
+  const [printers, setPrinters] = useState<Array<{ name: string; online: boolean; status: string; accepting: boolean; queueDepth?: number; estimatedWait?: string }>>([]);
   const [pricingConfig, setPricingConfig] = useState<{ bwPerPage: number; colorPerPage: number; duplexDiscount: number } | null>(null);
   const [supplyLevels, setSupplyLevels] = useState<Array<{ name: string; level: number; type: string }>>([]);
 
@@ -376,10 +376,12 @@ export default function UploadPage() {
                     onChange={(e) => setSelectedPrinter(e.target.value)}
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                   >
-                    <option value="auto">{t('upload.printerAuto')}</option>
-                    {printers.map((p) => (
+                    <option value="auto">{t('upload.printerAuto')} (Least Busy)</option>
+                    {printers
+                      .sort((a, b) => (a.queueDepth || 0) - (b.queueDepth || 0))
+                      .map((p, idx) => (
                       <option key={p.name} value={p.name} disabled={!p.online}>
-                        {p.name} {p.online ? '🟢' : '🔴'}
+                        {p.name} {p.online ? '🟢' : '🔴'} {p.queueDepth !== undefined && p.queueDepth > 0 ? `(${p.queueDepth} jobs, ~${p.estimatedWait})` : '(idle)'}{idx === 0 && p.online && p.queueDepth !== undefined ? ' ⭐' : ''}
                       </option>
                     ))}
                   </select>

@@ -280,4 +280,10 @@ const migrations = [
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_ref ON wallet_transactions(reference_id, user_email) WHERE reference_id IS NOT NULL`,
     ],
   },
+  {
+    name: '016_job_collected_at',
+    statements: [
+      `ALTER TABLE jobs ADD COLUMN collected_at TEXT`,
+    ],
+  },
 ];

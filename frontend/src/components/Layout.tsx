@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
-import { Printer, LogOut, History } from 'lucide-react';
+import { Printer, LogOut, History, Calculator } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import WalletBadge from './WalletBadge';
 import ThemeToggle from './ThemeToggle';
@@ -28,6 +28,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-4">
             <LanguageSelector />
             <ThemeToggle />
+            <Link
+              to="/estimate"
+              className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600"
+              title="Cost Estimator"
+            >
+              <Calculator size={16} />
+              <span className="hidden sm:inline">Estimate</span>
+            </Link>
             {isAuthenticated && (
               <>
                 <WalletBadge />

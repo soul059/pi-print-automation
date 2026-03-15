@@ -33,6 +33,7 @@ export interface Job {
   retry_count: number;
   error_message: string | null;
   scheduled_at: string | null;
+  collected_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -154,4 +155,18 @@ export function getAllJobs(filters?: {
     .all(...params, limit, offset) as Job[];
 
   return { jobs, total };
+}
+
+export function markJobCollected(jobId: string): boolean {
+  const db = getDb();
+  const job = getJob(jobId);
+  if (!job) return false;
+  if (job.status !== 'completed') return false;
+  if (job.collected_at) return false; // Already collected
+
+  const result = db.prepare(
+    "UPDATE jobs SET collected_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND status = 'completed' AND collected_at IS NULL"
+  ).run(jobId);
+
+  return (result as any).changes > 0;
 }

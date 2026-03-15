@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import LoginPage from './pages/LoginPage';
 import UploadPage from './pages/UploadPage';
+import EstimatePage from './pages/EstimatePage';
 import PaymentPage from './pages/PaymentPage';
 import StatusPage from './pages/StatusPage';
 import JobsPage from './pages/JobsPage';
@@ -38,6 +39,7 @@ export default function App() {
           <AnnouncementBanner />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/estimate" element={<EstimatePage />} />
             <Route
               path="/"
               element={

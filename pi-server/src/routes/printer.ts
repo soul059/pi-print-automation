@@ -13,14 +13,29 @@ export const printerRouter = Router();
 printerRouter.get('/list', async (_req: Request, res: Response) => {
   try {
     const statuses = await getAllPrinterStatuses();
-    res.json({
-      printers: statuses.map((s) => ({
+    const db = getDb();
+    
+    const printersWithQueue = statuses.map((s) => {
+      // Count jobs in queue for this printer
+      const queueCount = db.prepare(
+        "SELECT COUNT(*) as count FROM jobs WHERE printer_name = ? AND status IN ('paid', 'printing')"
+      ).get(s.printerName) as any;
+      
+      const queueDepth = queueCount?.count || 0;
+      const avgJobSeconds = getEstimatedWaitMinutes() > 0 ? getEstimatedWaitMinutes() * 60 / Math.max(1, getQueueDepth()) : 30;
+      const estimatedWait = queueDepth > 0 ? Math.ceil((queueDepth * avgJobSeconds) / 60) : 0;
+
+      return {
         name: s.printerName,
         online: s.online,
         status: s.status,
         accepting: s.accepting,
-      })),
+        queueDepth,
+        estimatedWait: estimatedWait > 0 ? `${estimatedWait} min` : 'idle',
+      };
     });
+
+    res.json({ printers: printersWithQueue });
   } catch (err: any) {
     res.status(500).json({ printers: [] });
   }

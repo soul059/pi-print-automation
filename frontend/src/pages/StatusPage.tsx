@@ -14,6 +14,7 @@ import {
   CalendarClock,
   Receipt,
   RotateCcw,
+  PackageCheck,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string; description: string }> = {
@@ -67,6 +68,7 @@ export default function StatusPage() {
   const navigate = useNavigate();
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [collectingJob, setCollectingJob] = useState(false);
 
   const isQueued = job?.status === 'paid' || job?.status === 'printing';
   const { position, estimatedWait } = useQueuePosition(jobId, isQueued);
@@ -108,6 +110,21 @@ export default function StatusPage() {
   }
 
   const statusInfo = STATUS_CONFIG[job.status] || STATUS_CONFIG.uploaded;
+
+  const handleCollect = async () => {
+    if (!token || !jobId || collectingJob) return;
+    setCollectingJob(true);
+    try {
+      const data = await api.collectJob(jobId, token);
+      if (data.success) {
+        await fetchJob();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCollectingJob(false);
+    }
+  };
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -176,6 +193,18 @@ export default function StatusPage() {
             <p className="text-sm font-medium text-yellow-800">📦 Collect Later Mode</p>
             <p className="text-xs text-yellow-600 mt-1">
               Your printout is ready for collection. Show your job ID to the staff.
+            </p>
+          </div>
+        )}
+
+        {job.status === 'completed' && job.collectedAt && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <PackageCheck size={18} className="text-green-600 dark:text-green-400" />
+              <p className="text-sm font-medium text-green-800 dark:text-green-300">Collected</p>
+            </div>
+            <p className="text-xs text-green-600 dark:text-green-400">
+              Picked up at {new Date(job.collectedAt).toLocaleString('en-IN')}
             </p>
           </div>
         )}
@@ -291,6 +320,16 @@ td:last-child{text-align:right;font-weight:500}
       </div>
 
       <div className="flex gap-3">
+        {job.status === 'completed' && !job.collectedAt && (
+          <button
+            onClick={handleCollect}
+            disabled={collectingJob}
+            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl font-medium hover:bg-green-700 transition disabled:opacity-50"
+          >
+            {collectingJob ? <Loader2 size={16} className="animate-spin" /> : <PackageCheck size={16} />}
+            Mark as Collected
+          </button>
+        )}
         {job.status === 'completed' && (
           <button
             onClick={async () => {
