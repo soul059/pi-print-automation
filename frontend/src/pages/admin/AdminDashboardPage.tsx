@@ -30,6 +30,7 @@ import {
   Upload,
   Clock,
   Wrench,
+  Bell,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -131,6 +132,8 @@ export default function AdminDashboardPage() {
 function OverviewTab({ token }: { token: string }) {
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [telegramStatus, setTelegramStatus] = useState<any>(null);
+  const [testingTelegram, setTestingTelegram] = useState(false);
 
   const fetchHealth = useCallback(async () => {
     setLoading(true);
@@ -143,7 +146,10 @@ function OverviewTab({ token }: { token: string }) {
     setLoading(false);
   }, [token]);
 
-  useEffect(() => { fetchHealth(); }, [fetchHealth]);
+  useEffect(() => {
+    fetchHealth();
+    api.adminGetTelegramStatus(token).then(setTelegramStatus).catch(() => {});
+  }, [fetchHealth, token]);
 
   if (loading) return <LoadingSpinner />;
   if (!health) return (
@@ -198,6 +204,40 @@ function OverviewTab({ token }: { token: string }) {
           <Stat label="Uploads Size" value={health.system?.uploadDirSize} />
           <Stat label="Platform" value={health.system?.platform} />
           <Stat label="Last Print" value={formatTime(health.lastSuccessfulPrint) || 'Never'} />
+        </div>
+      </Card>
+
+      {/* Telegram Alerts */}
+      <Card title="Telegram Alerts" icon={<Bell size={18} />}>
+        <div className="flex items-center justify-between">
+          <div className="text-sm">
+            <p>Status: {telegramStatus?.configured
+              ? <span className="text-green-600 dark:text-green-400 font-medium">✓ Configured</span>
+              : <span className="text-gray-400">Not configured</span>}
+            </p>
+            {telegramStatus?.configured && (
+              <p className="text-xs text-gray-500 mt-1">Bot: {telegramStatus.botToken} · Chat: {telegramStatus.chatId}</p>
+            )}
+            {!telegramStatus?.configured && (
+              <p className="text-xs text-gray-400 mt-1">Add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to .env</p>
+            )}
+          </div>
+          {telegramStatus?.configured && (
+            <button
+              onClick={async () => {
+                setTestingTelegram(true);
+                try {
+                  const result = await api.adminTestTelegram(token);
+                  result.success ? toast.success('Test message sent!') : toast.error(result.message || 'Failed');
+                } catch { toast.error('Failed to test'); }
+                setTestingTelegram(false);
+              }}
+              disabled={testingTelegram}
+              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center gap-1"
+            >
+              {testingTelegram ? <Loader2 size={14} className="animate-spin" /> : null} Test
+            </button>
+          )}
         </div>
       </Card>
     </div>

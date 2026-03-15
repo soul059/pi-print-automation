@@ -1,11 +1,13 @@
 import { Server as SocketServer } from 'socket.io';
 import { getPrinterStatus } from './cups';
 import { getQueueDepth, getEstimatedWaitMinutes, getQueuedJobIds } from './queue';
+import { telegram } from './telegram';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 
 let ioInstance: SocketServer | null = null;
 let lastStatus: any = null;
+let lastOnlineState: boolean | null = null;
 let consecutiveErrors = 0;
 let pollingInterval: ReturnType<typeof setInterval> | null = null;
 let subscriberCount = 0;
@@ -24,6 +26,16 @@ async function pollAndBroadcast(io: SocketServer): Promise<void> {
     if (statusKey !== lastStatus) {
       lastStatus = statusKey;
       io.to('printer-status').emit('printer:status', enriched);
+
+      // Telegram alert on online/offline transitions
+      if (lastOnlineState !== null && lastOnlineState !== status.online) {
+        if (status.online) {
+          telegram.printerOnline(status.printerName || 'default');
+        } else {
+          telegram.printerOffline(status.printerName || 'default');
+        }
+      }
+      lastOnlineState = status.online;
     }
   } catch (err: any) {
     consecutiveErrors++;

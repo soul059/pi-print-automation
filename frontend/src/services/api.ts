@@ -464,4 +464,20 @@ export const api = {
     });
     return res.json();
   },
+
+  // Telegram
+  async adminGetTelegramStatus(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/telegram/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminTestTelegram(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/telegram/test`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
 };

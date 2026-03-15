@@ -18,6 +18,7 @@ import { getOperatingHours, setOperatingHours, OperatingHours } from '../service
 import os from 'os';
 import fs from 'fs';
 import { env } from '../config/env';
+import { telegram } from '../services/telegram';
 
 // Multer for admin uploads
 const adminStorage = multer.diskStorage({
@@ -891,4 +892,28 @@ adminRouter.delete('/maintenance/:id', (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Telegram ──
+
+// Test Telegram notification
+adminRouter.post('/telegram/test', async (_req: Request, res: Response) => {
+  try {
+    if (!telegram.isConfigured()) {
+      return res.json({ success: false, message: 'Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env' });
+    }
+    const sent = await telegram.customAlert('Test Alert', 'This is a test notification from the print server admin panel.');
+    res.json({ success: sent, message: sent ? 'Test message sent!' : 'Failed to send' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Telegram status
+adminRouter.get('/telegram/status', (_req: Request, res: Response) => {
+  res.json({
+    configured: telegram.isConfigured(),
+    botToken: env.TELEGRAM_BOT_TOKEN ? '****' + env.TELEGRAM_BOT_TOKEN.slice(-4) : '',
+    chatId: env.TELEGRAM_CHAT_ID || '',
+  });
 });

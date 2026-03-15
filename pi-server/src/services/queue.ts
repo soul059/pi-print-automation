@@ -6,6 +6,7 @@ import * as pdf from './pdf';
 import { processRefund } from './refund';
 import { notifyJobCompleted, notifyJobFailed } from './notification';
 import { broadcastQueueUpdate } from './printerStatus';
+import { telegram } from './telegram';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 5000;
@@ -138,6 +139,8 @@ async function processJob(jobId: string): Promise<void> {
         "UPDATE jobs SET retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(newRetryCount, err.message, jobId);
       logger.error({ jobId, retries: newRetryCount }, 'Job permanently failed');
+      // Telegram alert for permanent failure
+      telegram.jobFailed(jobId, job.user_email, err.message).catch(() => {});
       // Auto-refund paid jobs that permanently failed
       processRefund(jobId).catch(refundErr =>
         logger.error({ jobId, err: refundErr.message }, 'Auto-refund failed')

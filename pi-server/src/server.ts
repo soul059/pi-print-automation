@@ -6,6 +6,7 @@ import { initDb, closeDb } from './db/connection';
 import { startJobRecovery } from './services/queue';
 import { startScheduler, stopScheduler } from './services/scheduler';
 import { startCleanup, stopCleanup } from './services/cleanup';
+import { telegram } from './services/telegram';
 import fs from 'fs';
 import path from 'path';
 
@@ -39,6 +40,7 @@ async function main() {
   // Start server
   httpServer.listen(env.PORT, () => {
     logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Print server started');
+    telegram.serverStarted().catch(() => {});
   });
 
   // Graceful shutdown
