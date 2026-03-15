@@ -34,7 +34,7 @@ export default function LoginPage() {
         setError(result.reason || result.error);
         return;
       }
-      login(result.token, result.email, result.name);
+      login(result.token, result.email, result.name, result.refreshToken);
       navigate('/');
     } catch {
       setError('Google sign-in failed. Please try again.');
@@ -71,7 +71,7 @@ export default function LoginPage() {
     try {
       const result = await api.verifyOtp(email.trim().toLowerCase(), otp.trim(), name.trim());
       if (result.verified) {
-        login(result.token, email.trim().toLowerCase(), name.trim());
+        login(result.token, email.trim().toLowerCase(), name.trim(), result.refreshToken);
         navigate('/');
       } else {
         setError(result.reason || 'Invalid OTP');

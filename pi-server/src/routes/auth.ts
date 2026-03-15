@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { OAuth2Client } from 'google-auth-library';
 import { validateEmail } from '../services/policy';
 import { generateOtp, sendOtp, verifyOtp } from '../services/email';
-import { generateToken } from '../middleware/auth';
+import { generateToken, generateRefreshToken, validateRefreshToken, revokeRefreshToken } from '../middleware/auth';
 import { env } from '../config/env';
 import { z } from 'zod';
 import { logger } from '../config/logger';
@@ -79,10 +79,13 @@ authRouter.post('/google', async (req: Request, res: Response) => {
     }
 
     const token = generateToken(email, name);
+    const { refreshToken, expiresAt } = generateRefreshToken(email, name);
     logger.info({ email, method: 'google' }, 'User authenticated via Google');
 
     res.json({
       token,
+      refreshToken,
+      refreshTokenExpiresAt: expiresAt.toISOString(),
       email,
       name,
       department: policyResult.department,
@@ -156,5 +159,50 @@ authRouter.post('/verify-otp', otpVerifyLimiter, (req: Request, res: Response) =
   }
 
   const token = generateToken(email, name);
-  res.json({ verified: true, token });
+  const { refreshToken, expiresAt } = generateRefreshToken(email, name);
+  res.json({ verified: true, token, refreshToken, refreshTokenExpiresAt: expiresAt.toISOString() });
+});
+
+// --- Token Refresh ---
+
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many refresh requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+authRouter.post('/refresh', refreshLimiter, (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    res.status(400).json({ error: 'refreshToken is required' });
+    return;
+  }
+
+  const user = validateRefreshToken(refreshToken);
+  if (!user) {
+    res.status(401).json({ error: 'Invalid or expired refresh token. Please log in again.' });
+    return;
+  }
+
+  // Issue new short-lived access token (refresh token stays the same until expiry)
+  const newAccessToken = generateToken(user.email, user.name);
+  logger.info({ email: user.email }, 'Token refreshed');
+
+  res.json({
+    token: newAccessToken,
+    email: user.email,
+    name: user.name,
+  });
+});
+
+// --- Logout (revoke refresh token) ---
+
+authRouter.post('/logout', (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  if (refreshToken && typeof refreshToken === 'string') {
+    revokeRefreshToken(refreshToken);
+  }
+  res.json({ success: true });
 });

@@ -258,4 +258,20 @@ const migrations = [
       )`,
     ],
   },
+  {
+    name: '014_refresh_tokens',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_hash TEXT NOT NULL UNIQUE,
+        user_email TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_email ON refresh_tokens (user_email)`,
+      `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens (token_hash)`,
+    ],
+  },
 ];

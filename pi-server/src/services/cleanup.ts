@@ -3,6 +3,7 @@ import path from 'path';
 import { getDb } from '../db/connection';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { cleanupExpiredRefreshTokens } from '../middleware/auth';
 
 let cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -60,6 +61,9 @@ function runCleanup(): void {
     if (cleaned > 0) {
       logger.info({ cleaned, total: expiredJobs.length }, 'File cleanup completed');
     }
+
+    // Clean expired/revoked refresh tokens
+    cleanupExpiredRefreshTokens();
   } catch (err: any) {
     logger.error({ err: err.message }, 'File cleanup failed');
   }
