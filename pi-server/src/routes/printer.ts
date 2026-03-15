@@ -3,6 +3,7 @@ import { getPrinterStatus, listPrinters, getAllPrinterStatuses, getSupplyLevels 
 import { getOrProbePrinter } from '../models/printer';
 import { getQueueDepth, getEstimatedWaitMinutes } from '../services/queue';
 import { isWithinOperatingHours } from '../services/settings';
+import { getDb } from '../db/connection';
 import { env } from '../config/env';
 
 export const printerRouter = Router();
@@ -86,5 +87,75 @@ printerRouter.get('/supplies', async (req: Request, res: Response) => {
     res.json({ supplies });
   } catch (err: any) {
     res.json({ supplies: [], error: err.message });
+  }
+});
+
+// Public: department usage leaderboard (anonymous)
+printerRouter.get('/leaderboard', (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+
+    // Match user emails to department policies for aggregation
+    const policies = db.prepare('SELECT name, domain, pattern, department_key FROM email_policies WHERE active = 1').all() as any[];
+
+    // Get all completed job stats grouped by email
+    const userStats = db.prepare(
+      `SELECT user_email,
+              COUNT(*) as jobs,
+              COALESCE(SUM(total_pages * copies), 0) as pages,
+              COALESCE(SUM(price), 0) as spent
+       FROM jobs WHERE status = 'completed'
+       GROUP BY user_email`
+    ).all() as any[];
+
+    // Aggregate by department
+    const deptStats: Record<string, { name: string; jobs: number; pages: number; users: Set<string> }> = {};
+
+    for (const user of userStats) {
+      const email = user.user_email as string;
+      const atIdx = email.indexOf('@');
+      if (atIdx === -1) continue;
+      const local = email.slice(0, atIdx).toLowerCase();
+      const domain = email.slice(atIdx + 1).toLowerCase();
+
+      let deptName = 'Other';
+      for (const policy of policies) {
+        if (policy.domain !== domain) continue;
+        try {
+          if (new RegExp(policy.pattern).test(local)) {
+            deptName = policy.name;
+            break;
+          }
+        } catch { /* ignore bad regex */ }
+      }
+
+      if (!deptStats[deptName]) {
+        deptStats[deptName] = { name: deptName, jobs: 0, pages: 0, users: new Set() };
+      }
+      deptStats[deptName].jobs += user.jobs;
+      deptStats[deptName].pages += user.pages;
+      deptStats[deptName].users.add(email);
+    }
+
+    const leaderboard = Object.values(deptStats)
+      .map(d => ({ name: d.name, jobs: d.jobs, pages: d.pages, users: d.users.size }))
+      .sort((a, b) => b.pages - a.pages);
+
+    // Global stats
+    const globalRow = db.prepare(
+      `SELECT COUNT(*) as totalJobs,
+              COALESCE(SUM(total_pages * copies), 0) as totalPages
+       FROM jobs WHERE status = 'completed'`
+    ).get() as any;
+
+    res.json({
+      leaderboard,
+      global: {
+        totalJobs: globalRow?.totalJobs ?? 0,
+        totalPages: globalRow?.totalPages ?? 0,
+      },
+    });
+  } catch (err: any) {
+    res.json({ leaderboard: [], global: { totalJobs: 0, totalPages: 0 }, error: err.message });
   }
 });

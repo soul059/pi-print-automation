@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp, Bell, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -24,6 +24,8 @@ export default function JobsPage() {
   const [showStats, setShowStats] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<{ emailOnCompleted: boolean; emailOnFailed: boolean } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -41,6 +43,7 @@ export default function JobsPage() {
       if (data.stats) setStats(data);
     }).catch(() => {});
     api.getNotificationPrefs(token).then(setNotifPrefs).catch(() => {});
+    api.getLeaderboard().then((data) => { if (data.leaderboard) setLeaderboard(data); }).catch(() => {});
   }, [token]);
 
   if (loading) {
@@ -185,6 +188,37 @@ export default function JobsPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Department Leaderboard */}
+      {leaderboard && leaderboard.leaderboard.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 overflow-hidden">
+          <button onClick={() => setShowLeaderboard(!showLeaderboard)} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+            <span className="flex items-center gap-2"><Trophy size={16} className="text-yellow-500" /> Department Leaderboard</span>
+            {showLeaderboard ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showLeaderboard && (
+            <div className="px-4 pb-4 space-y-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Total: {leaderboard.global.totalJobs} jobs, {leaderboard.global.totalPages.toLocaleString()} pages
+              </p>
+              {leaderboard.leaderboard.map((dept: any, i: number) => {
+                const maxPages = leaderboard.leaderboard[0]?.pages || 1;
+                return (
+                  <div key={dept.name} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`} {dept.name}</span>
+                      <span className="text-gray-500 dark:text-gray-400">{dept.pages.toLocaleString()} pages · {dept.users} users</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div className="bg-yellow-500 h-2 rounded-full transition-all" style={{ width: `${(dept.pages / maxPages) * 100}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

@@ -82,6 +82,12 @@ export const api = {
     return res.json();
   },
 
+  // Leaderboard
+  async getLeaderboard() {
+    const res = await fetch(`${API_BASE}/api/printer/leaderboard`);
+    return res.json();
+  },
+
   // Payment
   async createPayment(jobId: string, token: string) {
     const res = await fetch(`${API_BASE}/api/payment/create`, {
