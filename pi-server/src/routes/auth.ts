@@ -158,6 +158,13 @@ authRouter.post('/verify-otp', otpVerifyLimiter, (req: Request, res: Response) =
     return;
   }
 
+  // Re-check email policy (may have been revoked between OTP send and verify)
+  const policyResult = validateEmail(email);
+  if (!policyResult.valid) {
+    res.status(403).json({ verified: false, reason: 'Email no longer authorized' });
+    return;
+  }
+
   const token = generateToken(email, name);
   const { refreshToken, expiresAt } = generateRefreshToken(email, name);
   res.json({ verified: true, token, refreshToken, refreshTokenExpiresAt: expiresAt.toISOString() });

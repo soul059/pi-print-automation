@@ -5,7 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import { nanoid } from 'nanoid';
 import { requireAdmin, generateAdminToken } from '../middleware/auth';
-import { getAllPolicies, createPolicy, updatePolicy, deletePolicy } from '../services/policy';
+import { getAllPolicies, createPolicy, updatePolicy, deletePolicy, isSafeRegex } from '../services/policy';
 import { getAllJobs, transitionJob, getJob, createJob } from '../models/job';
 import { getPrinterStatus, getAllPrinterStatuses, enablePrinter, disablePrinter, listPrinters, cancelJob } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
@@ -147,6 +147,10 @@ adminRouter.put('/policies/:id', (req: Request<{id: string}>, res: Response) => 
       new RegExp(req.body.pattern);
     } catch {
       res.status(400).json({ error: 'Invalid regex pattern' });
+      return;
+    }
+    if (!isSafeRegex(req.body.pattern)) {
+      res.status(400).json({ error: 'Pattern rejected: potential ReDoS risk' });
       return;
     }
   }

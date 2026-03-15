@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { nanoid } from 'nanoid';
+import rateLimit from 'express-rate-limit';
 import { env } from '../config/env';
 import { requireAuth, AuthRequest, verifyToken } from '../middleware/auth';
 import { validatePdf, getPageCount, mergePdfs } from '../services/pdf';
@@ -83,7 +84,16 @@ uploadRouter.get('/preview/:jobId', (req: AuthRequest, res: Response) => {
   }
 });
 
-uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthRequest, res: Response) => {
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many uploads, please try again later' },
+  keyGenerator: (req: any) => req.userEmail || req.ip || 'unknown',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+uploadRouter.post('/', requireAuth, uploadLimiter, upload.array('files', 10), async (req: AuthRequest, res: Response) => {
   // Check operating hours
   const hoursCheck = isWithinOperatingHours();
   if (!hoursCheck.allowed) {

@@ -2,7 +2,7 @@ import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
 
 // Simple ReDoS detection: reject patterns with nested quantifiers
-function isSafeRegex(pattern: string): boolean {
+export function isSafeRegex(pattern: string): boolean {
   // Reject nested quantifiers like (a+)+, (a*)+, (a{1,})*
   if (/(\+|\*|\{)\)?(\+|\*|\{)/.test(pattern)) return false;
   // Reject patterns longer than 200 chars

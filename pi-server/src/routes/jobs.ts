@@ -5,6 +5,7 @@ import { getDb } from '../db/connection';
 import { getQueuePosition } from '../services/queue';
 import { calculatePrice } from '../services/pricing';
 import { checkLimit } from '../services/limits';
+import { isWithinOperatingHours } from '../services/settings';
 import fs from 'fs';
 
 export const jobsRouter = Router();
@@ -118,6 +119,13 @@ jobsRouter.get('/export', requireAuth, (req: AuthRequest, res: Response) => {
 
 // Re-print a completed job (creates a new job from the same file)
 jobsRouter.post('/:jobId/reprint', requireAuth, (req: AuthRequest, res: Response) => {
+  // Enforce operating hours (same as upload)
+  const hoursCheck = isWithinOperatingHours();
+  if (!hoursCheck.allowed) {
+    res.status(403).json({ error: hoursCheck.message || 'Service is currently closed' });
+    return;
+  }
+
   const originalJob = getJob(req.params.jobId as string);
   if (!originalJob) {
     res.status(404).json({ error: 'Job not found' });

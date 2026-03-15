@@ -3,6 +3,7 @@ import { getPrinterStatus, listPrinters, getAllPrinterStatuses, getSupplyLevels 
 import { getOrProbePrinter } from '../models/printer';
 import { getQueueDepth, getEstimatedWaitMinutes } from '../services/queue';
 import { isWithinOperatingHours } from '../services/settings';
+import { isSafeRegex } from '../services/policy';
 import { getDb } from '../db/connection';
 import { env } from '../config/env';
 
@@ -121,6 +122,7 @@ printerRouter.get('/leaderboard', (_req: Request, res: Response) => {
       for (const policy of policies) {
         if (policy.domain !== domain) continue;
         try {
+          if (!isSafeRegex(policy.pattern)) continue;
           if (new RegExp(policy.pattern).test(local)) {
             deptName = policy.name;
             break;

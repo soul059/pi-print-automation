@@ -165,7 +165,7 @@ paymentRouter.post('/verify', paymentCreateLimiter, requireAuth, async (req: Aut
     // Find payment and job
     const db = getDb();
     const payment = db
-      .prepare('SELECT * FROM payments WHERE razorpay_order_id = ?')
+      .prepare("SELECT * FROM payments WHERE razorpay_order_id = ? AND payment_type != 'wallet_topup'")
       .get(razorpay_order_id) as any;
 
     if (!payment) {
@@ -398,7 +398,7 @@ paymentRouter.post('/webhook', webhookLimiter, async (req: Request, res: Respons
 
       const db = getDb();
       db.prepare(
-        "UPDATE payments SET status = 'failed', updated_at = datetime('now') WHERE razorpay_order_id = ?"
+        "UPDATE payments SET status = 'failed', updated_at = datetime('now') WHERE razorpay_order_id = ? AND status = 'created'"
       ).run(orderId);
 
       const payment = db
