@@ -208,6 +208,8 @@ function JobsTab({ token }: { token: string }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
+  const [bulkRefunding, setBulkRefunding] = useState(false);
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -267,6 +269,26 @@ function JobsTab({ token }: { token: string }) {
     fetchJobs();
   };
 
+  const handleBulkRefund = async () => {
+    if (selectedJobs.size === 0) return;
+    setBulkRefunding(true);
+    try {
+      const result = await api.adminBulkRefund(Array.from(selectedJobs), token);
+      if (result.summary) {
+        toast.success(`Refunded ${result.summary.succeeded}/${result.summary.total} jobs`);
+        if (result.summary.failed > 0) {
+          const errors = result.results.filter((r: any) => !r.success);
+          toast.error(`${result.summary.failed} failed: ${errors.map((e: any) => e.error).join(', ')}`);
+        }
+      }
+      setSelectedJobs(new Set());
+      fetchJobs();
+    } catch {
+      toast.error('Bulk refund failed');
+    }
+    setBulkRefunding(false);
+  };
+
   const statuses = ['', 'uploaded', 'paid', 'printing', 'completed', 'failed', 'failed_permanent'];
 
   const filteredJobs = searchQuery
@@ -315,6 +337,15 @@ function JobsTab({ token }: { token: string }) {
           >
             <Download size={14} /> CSV
           </button>
+          {selectedJobs.size > 0 && (
+            <button
+              onClick={handleBulkRefund}
+              disabled={bulkRefunding}
+              className="flex items-center gap-1 text-sm bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 disabled:opacity-50 transition shrink-0"
+            >
+              <DollarSign size={14} /> Refund {selectedJobs.size} selected
+            </button>
+          )}
         </div>
       </div>
 
@@ -334,6 +365,19 @@ function JobsTab({ token }: { token: string }) {
               className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-hidden transition hover:border-gray-300 dark:hover:border-gray-600"
             >
               <div className="p-4 flex items-start justify-between gap-3">
+                {job.status === 'failed_permanent' && (
+                  <input
+                    type="checkbox"
+                    checked={selectedJobs.has(job.id)}
+                    onChange={(e) => {
+                      const next = new Set(selectedJobs);
+                      if (e.target.checked) next.add(job.id);
+                      else next.delete(job.id);
+                      setSelectedJobs(next);
+                    }}
+                    className="mt-1 rounded shrink-0"
+                  />
+                )}
                 <div
                   className="flex-1 min-w-0 cursor-pointer"
                   onClick={() => setExpandedJob(expandedJob === job.id ? null : job.id)}

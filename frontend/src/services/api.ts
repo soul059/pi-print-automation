@@ -197,6 +197,15 @@ export const api = {
     return res.json();
   },
 
+  async adminBulkRefund(jobIds: string[], token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/jobs/bulk-refund`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ jobIds }),
+    });
+    return res.json();
+  },
+
   async adminDirectPrint(file: File, options: { paperSize?: string; copies?: number; duplex?: boolean; color?: string; printerName?: string }, token: string) {
     const formData = new FormData();
     formData.append('file', file);

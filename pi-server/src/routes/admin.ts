@@ -327,6 +327,46 @@ adminRouter.post('/jobs/:jobId/refund', async (req: Request<{jobId: string}>, re
   }
 });
 
+// Bulk refund
+adminRouter.post('/jobs/bulk-refund', async (req: Request, res: Response) => {
+  const { jobIds } = req.body;
+  if (!Array.isArray(jobIds) || jobIds.length === 0) {
+    res.status(400).json({ error: 'jobIds array required' });
+    return;
+  }
+  if (jobIds.length > 50) {
+    res.status(400).json({ error: 'Maximum 50 jobs per bulk refund' });
+    return;
+  }
+
+  const results: Array<{ jobId: string; success: boolean; error?: string }> = [];
+
+  for (const jobId of jobIds) {
+    const job = getJob(jobId);
+    if (!job) {
+      results.push({ jobId, success: false, error: 'Job not found' });
+      continue;
+    }
+    if (job.status !== 'failed_permanent') {
+      results.push({ jobId, success: false, error: 'Not permanently failed' });
+      continue;
+    }
+    try {
+      const result = await processRefund(job.id);
+      results.push({ jobId, success: result.success, error: result.error });
+      if (result.success) {
+        logger.info({ jobId }, 'Admin: bulk refund processed');
+      }
+    } catch (err: any) {
+      results.push({ jobId, success: false, error: err.message });
+    }
+  }
+
+  const succeeded = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+  res.json({ results, summary: { total: results.length, succeeded, failed } });
+});
+
 // --- Announcements ---
 
 adminRouter.get('/announcements', (_req: Request, res: Response) => {
