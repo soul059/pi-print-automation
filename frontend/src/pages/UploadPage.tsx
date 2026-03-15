@@ -15,6 +15,7 @@ import {
   Printer,
   AlertTriangle,
   IndianRupee,
+  Clock,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/I18nContext';
 
@@ -171,6 +172,13 @@ export default function UploadPage() {
       </div>
 
       <PrinterStatusBadge enabled={files.length > 0} />
+
+      {status && status.queueDepth > 0 && (
+        <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg">
+          <Clock size={14} />
+          <span>{status.queueDepth} job{status.queueDepth > 1 ? 's' : ''} in queue · Estimated wait: {status.estimatedWait}</span>
+        </div>
+      )}
 
       {supplyLevels.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-3">

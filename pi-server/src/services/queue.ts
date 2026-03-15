@@ -193,8 +193,28 @@ export function getQueueDepth(): number {
   return queue.length + (processing ? 1 : 0);
 }
 
+export function getAvgJobDurationSeconds(): number {
+  try {
+    const db = getDb();
+    // Avg time from paid → completed for last 50 completed jobs
+    const row = db.prepare(
+      `SELECT AVG(
+         (julianday(updated_at) - julianday(created_at)) * 86400
+       ) as avg_seconds
+       FROM (
+         SELECT updated_at, created_at FROM jobs
+         WHERE status = 'completed'
+         ORDER BY updated_at DESC LIMIT 50
+       )`
+    ).get() as any;
+    const avg = row?.avg_seconds;
+    if (avg && avg > 0 && avg < 3600) return Math.round(avg);
+  } catch { /* fallback */ }
+  return 30; // default 30s
+}
+
 export function getEstimatedWaitMinutes(): number {
-  const avgJobSeconds = 30; // rough estimate
+  const avgJobSeconds = getAvgJobDurationSeconds();
   return Math.ceil((getQueueDepth() * avgJobSeconds) / 60);
 }
 
