@@ -14,6 +14,7 @@ import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
 import { getDailyPageLimit, setDailyPageLimit } from '../services/limits';
 import { validatePdf, getPageCount } from '../services/pdf';
+import { getOperatingHours, setOperatingHours, OperatingHours } from '../services/settings';
 import os from 'os';
 import fs from 'fs';
 import { env } from '../config/env';
@@ -679,6 +680,41 @@ adminRouter.put('/settings/daily-limit', (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error({ err: err.message }, 'Failed to update daily limit');
     res.status(500).json({ error: 'Failed to update daily limit' });
+  }
+});
+
+// --- Operating Hours ---
+
+adminRouter.get('/settings/operating-hours', (_req: Request, res: Response) => {
+  res.json(getOperatingHours());
+});
+
+adminRouter.put('/settings/operating-hours', (req: Request, res: Response) => {
+  try {
+    const { enabled, startHour, endHour, days } = req.body;
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'enabled must be boolean' });
+      return;
+    }
+    if (typeof startHour !== 'number' || startHour < 0 || startHour > 23) {
+      res.status(400).json({ error: 'startHour must be 0-23' });
+      return;
+    }
+    if (typeof endHour !== 'number' || endHour < 0 || endHour > 23) {
+      res.status(400).json({ error: 'endHour must be 0-23' });
+      return;
+    }
+    if (!Array.isArray(days) || !days.every((d: any) => typeof d === 'number' && d >= 0 && d <= 6)) {
+      res.status(400).json({ error: 'days must be array of 0-6' });
+      return;
+    }
+    const config: OperatingHours = { enabled, startHour, endHour, days };
+    setOperatingHours(config);
+    logger.info({ config }, 'Operating hours updated');
+    res.json(config);
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to update operating hours');
+    res.status(500).json({ error: 'Failed to update operating hours' });
   }
 });
 

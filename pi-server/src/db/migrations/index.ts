@@ -233,4 +233,16 @@ const migrations = [
       )`,
     ],
   },
+  {
+    name: '012_operating_hours',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // Default: 8 AM to 8 PM, Mon-Sat, enabled
+      `INSERT OR IGNORE INTO settings (key, value) VALUES ('operating_hours', '{"enabled":false,"startHour":8,"endHour":20,"days":[1,2,3,4,5,6]}')`,
+    ],
+  },
 ];

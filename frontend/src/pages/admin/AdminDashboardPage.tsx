@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Info,
   Upload,
+  Clock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -703,19 +704,22 @@ function LimitsTab({ token }: { token: string }) {
   const [form, setForm] = useState({ email: '', extraPages: '', reason: '' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [opHours, setOpHours] = useState<{ enabled: boolean; startHour: number; endHour: number; days: number[] }>({ enabled: false, startHour: 8, endHour: 20, days: [1,2,3,4,5,6] });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [limitData, exemptionData] = await Promise.all([
+      const [limitData, exemptionData, hoursData] = await Promise.all([
         api.adminGetDailyLimit(token),
         api.adminGetExemptions(token),
+        api.adminGetOperatingHours(token),
       ]);
       if (limitData.limit) {
         setDailyLimit(limitData.limit);
         setNewLimit(String(limitData.limit));
       }
       setExemptions(exemptionData.exemptions || []);
+      if (hoursData.startHour !== undefined) setOpHours(hoursData);
     } catch {
       toast.error('Failed to load limits data');
     }
@@ -803,6 +807,68 @@ function LimitsTab({ token }: { token: string }) {
             {saving && <Loader2 size={14} className="animate-spin" />}
             {saving ? 'Saving...' : 'Update'}
           </button>
+        </div>
+      </Card>
+
+      {/* Operating Hours */}
+      <Card title="Operating Hours" icon={<Clock size={18} />}>
+        <div className="space-y-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={opHours.enabled}
+              onChange={async (e) => {
+                const updated = { ...opHours, enabled: e.target.checked };
+                setOpHours(updated);
+                try { await api.adminSetOperatingHours(updated, token); toast.success(e.target.checked ? 'Operating hours enabled' : 'Operating hours disabled'); } catch { toast.error('Failed to update'); }
+              }}
+              className="rounded"
+            />
+            <span className="text-sm dark:text-gray-300">Restrict uploads to operating hours</span>
+          </label>
+          {opHours.enabled && (
+            <>
+              <div className="flex items-center gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Open</label>
+                  <select value={opHours.startHour} onChange={async (e) => { const updated = { ...opHours, startHour: parseInt(e.target.value) }; setOpHours(updated); try { await api.adminSetOperatingHours(updated, token); toast.success('Updated'); } catch { toast.error('Failed'); } }} className="border dark:border-gray-600 rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:text-white">
+                    {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{`${i % 12 || 12}:00 ${i < 12 ? 'AM' : 'PM'}`}</option>)}
+                  </select>
+                </div>
+                <span className="text-gray-400 mt-5">–</span>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Close</label>
+                  <select value={opHours.endHour} onChange={async (e) => { const updated = { ...opHours, endHour: parseInt(e.target.value) }; setOpHours(updated); try { await api.adminSetOperatingHours(updated, token); toast.success('Updated'); } catch { toast.error('Failed'); } }} className="border dark:border-gray-600 rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:text-white">
+                    {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{`${i % 12 || 12}:00 ${i < 12 ? 'AM' : 'PM'}`}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Open Days</label>
+                <div className="flex gap-1">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={async () => {
+                        const days = opHours.days.includes(i) ? opHours.days.filter(d => d !== i) : [...opHours.days, i].sort();
+                        const updated = { ...opHours, days };
+                        setOpHours(updated);
+                        try { await api.adminSetOperatingHours(updated, token); } catch { toast.error('Failed'); }
+                      }}
+                      className={`w-8 h-8 rounded-full text-xs font-medium transition ${
+                        opHours.days.includes(i)
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </Card>
 

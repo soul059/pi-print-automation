@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getPrinterStatus, listPrinters, getAllPrinterStatuses, getSupplyLevels } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
 import { getQueueDepth, getEstimatedWaitMinutes } from '../services/queue';
+import { isWithinOperatingHours } from '../services/settings';
 import { env } from '../config/env';
 
 export const printerRouter = Router();
@@ -52,6 +53,8 @@ printerRouter.get('/status', async (_req: Request, res: Response) => {
       supportsDuplex = profile.supports_duplex === 1;
     }
 
+    const operatingHours = isWithinOperatingHours();
+
     res.json({
       online: status.online,
       status: status.status,
@@ -59,6 +62,7 @@ printerRouter.get('/status', async (_req: Request, res: Response) => {
       printerName: status.printerName,
       queueDepth: getQueueDepth(),
       estimatedWait: `${getEstimatedWaitMinutes()} minutes`,
+      operatingHours,
       capabilities: {
         color: supportsColor,
         duplex: supportsDuplex,

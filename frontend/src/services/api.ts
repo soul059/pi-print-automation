@@ -381,6 +381,22 @@ export const api = {
     return res.json();
   },
 
+  async adminGetOperatingHours(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/settings/operating-hours`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminSetOperatingHours(config: { enabled: boolean; startHour: number; endHour: number; days: number[] }, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/settings/operating-hours`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify(config),
+    });
+    return res.json();
+  },
+
   async adminGrantExemption(email: string, extraPages: number, reason: string, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/exemptions`, {
       method: 'POST',

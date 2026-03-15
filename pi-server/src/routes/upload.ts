@@ -11,6 +11,7 @@ import { createJob, getJob } from '../models/job';
 import { logger } from '../config/logger';
 import { getEstimatedWaitMinutes } from '../services/queue';
 import { checkLimit } from '../services/limits';
+import { isWithinOperatingHours } from '../services/settings';
 
 // Multer config
 const storage = multer.diskStorage({
@@ -82,6 +83,16 @@ uploadRouter.get('/preview/:jobId', (req: AuthRequest, res: Response) => {
 });
 
 uploadRouter.post('/', requireAuth, upload.array('files', 10), async (req: AuthRequest, res: Response) => {
+  // Check operating hours
+  const hoursCheck = isWithinOperatingHours();
+  if (!hoursCheck.allowed) {
+    // Clean up any uploaded files
+    const files = req.files as Express.Multer.File[] | undefined;
+    if (files) for (const f of files) { try { fs.unlinkSync(f.path); } catch {} }
+    res.status(403).json({ error: hoursCheck.message || 'Service is currently closed' });
+    return;
+  }
+
   const uploadedFiles = req.files as Express.Multer.File[] | undefined;
 
   // Backward compatibility: accept single file via 'file' field

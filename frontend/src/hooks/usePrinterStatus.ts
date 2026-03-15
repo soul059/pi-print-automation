@@ -9,6 +9,7 @@ interface PrinterStatus {
   printerName: string;
   queueDepth: number;
   estimatedWait: string;
+  operatingHours?: { allowed: boolean; message?: string };
   capabilities?: {
     color: boolean;
     duplex: boolean;

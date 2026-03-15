@@ -180,6 +180,13 @@ export default function UploadPage() {
         </div>
       )}
 
+      {status?.operatingHours && !status.operatingHours.allowed && (
+        <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span>{status.operatingHours.message || 'Service is currently closed'}</span>
+        </div>
+      )}
+
       {supplyLevels.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-3">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Supply Levels</p>
