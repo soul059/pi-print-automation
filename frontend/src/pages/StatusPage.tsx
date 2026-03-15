@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuePosition } from '../hooks/useQueuePosition';
 import { api } from '../services/api';
@@ -13,6 +13,7 @@ import {
   RefreshCw,
   CalendarClock,
   Receipt,
+  RotateCcw,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string; description: string }> = {
@@ -63,6 +64,7 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; labe
 export default function StatusPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -288,12 +290,29 @@ td:last-child{text-align:right;font-weight:500}
         )}
       </div>
 
-      <Link
-        to="/"
-        className="block text-center bg-primary-600 text-white py-3 rounded-xl font-medium hover:bg-primary-700 transition"
-      >
-        Print Another Document
-      </Link>
+      <div className="flex gap-3">
+        {job.status === 'completed' && (
+          <button
+            onClick={async () => {
+              if (!token || !jobId) return;
+              try {
+                const data = await api.reprintJob(jobId, {}, token);
+                if (data.error) return;
+                navigate(`/payment/${data.jobId}`);
+              } catch { /* ignore */ }
+            }}
+            className="flex-1 flex items-center justify-center gap-2 border border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 py-3 rounded-xl font-medium hover:bg-primary-50 dark:hover:bg-primary-900/30 transition"
+          >
+            <RotateCcw size={16} /> Re-print
+          </button>
+        )}
+        <Link
+          to="/"
+          className="flex-1 block text-center bg-primary-600 text-white py-3 rounded-xl font-medium hover:bg-primary-700 transition"
+        >
+          Print Another Document
+        </Link>
+      </div>
     </div>
   );
 }

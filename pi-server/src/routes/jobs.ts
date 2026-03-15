@@ -1,8 +1,10 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { getJob, getJobsByEmail } from '../models/job';
+import { getJob, getJobsByEmail, createJob } from '../models/job';
 import { getDb } from '../db/connection';
 import { getQueuePosition } from '../services/queue';
+import { calculatePrice } from '../services/pricing';
+import fs from 'fs';
 
 export const jobsRouter = Router();
 
@@ -111,6 +113,62 @@ jobsRouter.get('/export', requireAuth, (req: AuthRequest, res: Response) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="print-history-${new Date().toISOString().split('T')[0]}.csv"`);
   res.send(header + rows);
+});
+
+// Re-print a completed job (creates a new job from the same file)
+jobsRouter.post('/:jobId/reprint', requireAuth, (req: AuthRequest, res: Response) => {
+  const originalJob = getJob(req.params.jobId as string);
+  if (!originalJob) {
+    res.status(404).json({ error: 'Job not found' });
+    return;
+  }
+  if (originalJob.user_email !== req.userEmail) {
+    res.status(403).json({ error: 'Unauthorized' });
+    return;
+  }
+  if (!originalJob.file_path || !fs.existsSync(originalJob.file_path)) {
+    res.status(400).json({ error: 'Original file no longer available. Files are cleaned up periodically.' });
+    return;
+  }
+
+  // Allow overriding some options
+  const {
+    paperSize = originalJob.paper_size,
+    copies = originalJob.copies,
+    duplex = originalJob.duplex === 1,
+    color = originalJob.color,
+    printMode = originalJob.print_mode,
+  } = req.body || {};
+
+  const priceCalc = calculatePrice(
+    originalJob.total_pages,
+    originalJob.print_pages || undefined,
+    color as 'grayscale' | 'color',
+    Number(copies),
+    Boolean(duplex)
+  );
+
+  const newJob = createJob({
+    userEmail: req.userEmail!,
+    userName: originalJob.user_name,
+    fileName: originalJob.file_name,
+    filePath: originalJob.file_path,
+    totalPages: originalJob.total_pages,
+    printPages: originalJob.print_pages || undefined,
+    paperSize: String(paperSize),
+    copies: Number(copies),
+    duplex: Boolean(duplex),
+    color: color as 'grayscale' | 'color',
+    printMode: printMode as 'now' | 'later',
+    price: priceCalc.total,
+    printerName: originalJob.printer_name || undefined,
+  });
+
+  res.json({
+    jobId: newJob.id,
+    price: newJob.price,
+    message: 'Re-print job created. Proceed to payment.',
+  });
 });
 
 jobsRouter.get('/:jobId/receipt', requireAuth, (req: AuthRequest, res: Response) => {

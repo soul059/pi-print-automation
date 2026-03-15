@@ -135,6 +135,16 @@ export const api = {
     return res.json();
   },
 
+  // Re-print job
+  async reprintJob(jobId: string, options: Record<string, any>, token: string) {
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/reprint`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(options),
+    });
+    return res.json();
+  },
+
   // Admin
   async adminLogin(username: string, password: string) {
     const res = await fetch(`${API_BASE}/api/admin/login`, {
