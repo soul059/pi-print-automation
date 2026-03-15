@@ -292,6 +292,13 @@ paymentRouter.post('/webhook', webhookLimiter, async (req: Request, res: Respons
       return;
     }
 
+    // Block webhooks if secret not configured (prevents forged webhooks with empty key)
+    if (!env.RAZORPAY_WEBHOOK_SECRET) {
+      logger.warn('Webhook rejected: RAZORPAY_WEBHOOK_SECRET not configured');
+      res.status(500).json({ error: 'Webhook verification not configured' });
+      return;
+    }
+
     // Verify webhook signature
     const expectedSignature = crypto
       .createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET)
@@ -320,6 +327,12 @@ paymentRouter.post('/webhook', webhookLimiter, async (req: Request, res: Respons
       if (!payment) {
         logger.warn({ orderId }, 'Webhook: payment record not found');
         res.json({ status: 'ok' }); // Still return 200 to not retry
+        return;
+      }
+
+      // Skip wallet topup payments — handled by /wallet/topup/verify
+      if (payment.payment_type === 'wallet_topup') {
+        res.json({ status: 'ok', message: 'Wallet topup handled by verify endpoint' });
         return;
       }
 

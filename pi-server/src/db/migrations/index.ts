@@ -274,4 +274,10 @@ const migrations = [
       `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens (token_hash)`,
     ],
   },
+  {
+    name: '015_wallet_tx_unique_ref',
+    statements: [
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_ref ON wallet_transactions(reference_id, user_email) WHERE reference_id IS NOT NULL`,
+    ],
+  },
 ];

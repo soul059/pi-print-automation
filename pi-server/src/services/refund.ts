@@ -59,6 +59,14 @@ export async function processRefund(jobId: string): Promise<{ success: boolean; 
 
   // Razorpay-paid jobs: refund via Razorpay
   try {
+    // Mark as pending BEFORE calling Razorpay API — prevents concurrent refund calls
+    const markPending = db.prepare(
+      `UPDATE payments SET refund_status = 'pending', updated_at = datetime('now') WHERE id = ? AND refund_status IS NULL`
+    ).run(payment.id);
+    if ((markPending as any).changes === 0) {
+      return { success: true, refundId: payment.refund_id };
+    }
+
     const rz = getRazorpay();
     const refund = await (rz.payments as any).refund(payment.razorpay_payment_id, {
       amount: payment.amount,

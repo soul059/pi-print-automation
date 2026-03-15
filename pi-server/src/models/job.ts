@@ -113,18 +113,19 @@ export function transitionJob(id: string, newStatus: JobStatus, errorMessage?: s
     return false;
   }
 
+  // Atomic transition: WHERE includes current status to prevent TOCTOU races
+  let result;
   if (errorMessage) {
-    db.prepare(
-      "UPDATE jobs SET status = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
-    ).run(newStatus, errorMessage, id);
+    result = db.prepare(
+      "UPDATE jobs SET status = ?, error_message = ?, updated_at = datetime('now') WHERE id = ? AND status = ?"
+    ).run(newStatus, errorMessage, id, job.status);
   } else {
-    db.prepare("UPDATE jobs SET status = ?, updated_at = datetime('now') WHERE id = ?").run(
-      newStatus,
-      id
-    );
+    result = db.prepare(
+      "UPDATE jobs SET status = ?, updated_at = datetime('now') WHERE id = ? AND status = ?"
+    ).run(newStatus, id, job.status);
   }
 
-  return true;
+  return (result as any).changes > 0;
 }
 
 export function getAllJobs(filters?: {
