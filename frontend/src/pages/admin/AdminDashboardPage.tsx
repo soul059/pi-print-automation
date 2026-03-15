@@ -29,10 +29,11 @@ import {
   Info,
   Upload,
   Clock,
+  Wrench,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-type Tab = 'overview' | 'jobs' | 'policies' | 'limits' | 'quickprint';
+type Tab = 'overview' | 'jobs' | 'policies' | 'limits' | 'quickprint' | 'maintenance';
 
 function formatTime(raw: string | undefined): string {
   if (!raw) return '—';
@@ -85,6 +86,7 @@ export default function AdminDashboardPage() {
           { id: 'policies', label: 'Email Policies', icon: Shield },
           { id: 'limits', label: 'Print Limits', icon: Gauge },
           { id: 'quickprint', label: 'Quick Print', icon: Upload },
+          { id: 'maintenance', label: 'Maintenance', icon: Wrench },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -120,6 +122,7 @@ export default function AdminDashboardPage() {
       {tab === 'policies' && <PoliciesTab token={token!} />}
       {tab === 'limits' && <LimitsTab token={token!} />}
       {tab === 'quickprint' && <QuickPrintTab token={token!} />}
+      {tab === 'maintenance' && <MaintenanceTab token={token!} />}
     </div>
   );
 }
@@ -1160,6 +1163,115 @@ function QuickPrintTab({ token }: { token: string }) {
         <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm">
           <p className="font-medium text-green-800 dark:text-green-300">✓ {result.message}</p>
           <p className="text-green-600 dark:text-green-400 mt-1">Job ID: <span className="font-mono">{result.jobId}</span></p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Maintenance Tab ---
+function MaintenanceTab({ token }: { token: string }) {
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [eventType, setEventType] = useState('paper_refill');
+  const [description, setDescription] = useState('');
+  const [printerName, setPrinterName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const eventTypes = [
+    { value: 'paper_refill', label: '📄 Paper Refill' },
+    { value: 'ink_refill', label: '🖋️ Ink Refill' },
+    { value: 'toner_replace', label: '🔧 Toner Replace' },
+    { value: 'service', label: '🛠️ Service' },
+    { value: 'repair', label: '🔩 Repair' },
+    { value: 'cleaning', label: '🧹 Cleaning' },
+    { value: 'other', label: '📝 Other' },
+  ];
+
+  const loadEntries = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await api.adminGetMaintenanceLog(token);
+      setEntries(data.entries || []);
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { loadEntries(); }, [loadEntries]);
+
+  const handleAdd = async () => {
+    if (!description.trim()) return toast.error('Description is required');
+    setSubmitting(true);
+    try {
+      await api.adminAddMaintenanceEntry({ printerName: printerName || undefined, eventType, description: description.trim() }, token);
+      toast.success('Entry added');
+      setDescription('');
+      loadEntries();
+    } catch { toast.error('Failed to add entry'); } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Delete this entry?')) return;
+    try {
+      await api.adminDeleteMaintenanceEntry(id, token);
+      toast.success('Entry deleted');
+      loadEntries();
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Add entry form */}
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><Plus size={16} /> Log Maintenance Event</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <select value={eventType} onChange={e => setEventType(e.target.value)}
+            className="rounded-lg border dark:border-gray-600 p-2 bg-white dark:bg-gray-700">
+            {eventTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          <input type="text" placeholder="Printer name (optional)" value={printerName}
+            onChange={e => setPrinterName(e.target.value)}
+            className="rounded-lg border dark:border-gray-600 p-2 bg-white dark:bg-gray-700" />
+          <input type="text" placeholder="Description *" value={description}
+            onChange={e => setDescription(e.target.value)} maxLength={500}
+            className="rounded-lg border dark:border-gray-600 p-2 bg-white dark:bg-gray-700" />
+        </div>
+        <button onClick={handleAdd} disabled={submitting || !description.trim()}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2">
+          {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Add Entry
+        </button>
+      </div>
+
+      {/* Entries list */}
+      {loading ? (
+        <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary-500" size={24} /></div>
+      ) : entries.length === 0 ? (
+        <p className="text-center text-gray-500 dark:text-gray-400 py-8">No maintenance entries yet</p>
+      ) : (
+        <div className="space-y-2">
+          {entries.map((entry: any) => (
+            <div key={entry.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium">
+                    {eventTypes.find(t => t.value === entry.event_type)?.label || entry.event_type}
+                  </span>
+                  {entry.printer_name && (
+                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">{entry.printer_name}</span>
+                  )}
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(entry.created_at).toLocaleString()}</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">{entry.description}</p>
+                {entry.admin_email && <p className="text-xs text-gray-400 mt-0.5">by {entry.admin_email}</p>}
+              </div>
+              <button onClick={() => handleDelete(entry.id)} className="ml-2 p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

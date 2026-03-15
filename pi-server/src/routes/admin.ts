@@ -836,3 +836,59 @@ adminRouter.post('/print', adminUpload.single('file'), async (req: Request, res:
     res.status(500).json({ error: 'Failed to queue print job' });
   }
 });
+
+// ── Maintenance Log ──
+
+// List maintenance log entries
+adminRouter.get('/maintenance', (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const rows = db.prepare(
+      'SELECT * FROM maintenance_log ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).all(limit, offset);
+    const countRow = db.prepare('SELECT COUNT(*) as total FROM maintenance_log').get() as any;
+    res.json({ entries: rows, total: countRow?.total ?? 0 });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add maintenance log entry
+adminRouter.post('/maintenance', (req: Request, res: Response) => {
+  try {
+    const { printerName, eventType, description } = req.body;
+    if (!eventType || !description) {
+      return res.status(400).json({ error: 'eventType and description are required' });
+    }
+    const validTypes = ['paper_refill', 'ink_refill', 'toner_replace', 'service', 'repair', 'cleaning', 'other'];
+    if (!validTypes.includes(eventType)) {
+      return res.status(400).json({ error: `eventType must be one of: ${validTypes.join(', ')}` });
+    }
+    if (description.length > 500) {
+      return res.status(400).json({ error: 'Description too long (max 500 chars)' });
+    }
+    const db = getDb();
+    const adminEmail = (req as any).adminUser || 'admin';
+    db.prepare(
+      'INSERT INTO maintenance_log (printer_name, event_type, description, admin_email) VALUES (?, ?, ?, ?)'
+    ).run(printerName || null, eventType, description.slice(0, 500), adminEmail);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete maintenance log entry
+adminRouter.delete('/maintenance/:id', (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+    const db = getDb();
+    db.prepare('DELETE FROM maintenance_log WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});

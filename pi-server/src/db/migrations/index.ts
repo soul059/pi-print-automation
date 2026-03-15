@@ -245,4 +245,17 @@ const migrations = [
       `INSERT OR IGNORE INTO settings (key, value) VALUES ('operating_hours', '{"enabled":false,"startHour":8,"endHour":20,"days":[1,2,3,4,5,6]}')`,
     ],
   },
+  {
+    name: '013_maintenance_log',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS maintenance_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        printer_name TEXT,
+        event_type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        admin_email TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
 ];

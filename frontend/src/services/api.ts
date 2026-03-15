@@ -439,4 +439,29 @@ export const api = {
     a.click();
     URL.revokeObjectURL(a.href);
   },
+
+  // Maintenance Log
+  async adminGetMaintenanceLog(token: string, limit = 50, offset = 0) {
+    const res = await fetch(`${API_BASE}/api/admin/maintenance?limit=${limit}&offset=${offset}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async adminAddMaintenanceEntry(entry: { printerName?: string; eventType: string; description: string }, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/maintenance`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(entry),
+    });
+    return res.json();
+  },
+
+  async adminDeleteMaintenanceEntry(id: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/maintenance/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
 };
