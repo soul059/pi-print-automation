@@ -421,15 +421,18 @@ paymentRouter.post('/webhook', webhookLimiter, async (req: Request, res: Respons
       const orderId = paymentEntity.order_id;
 
       const db = getDb();
-      db.prepare(
+      const failResult = db.prepare(
         "UPDATE payments SET status = 'failed', updated_at = datetime('now') WHERE razorpay_order_id = ? AND status = 'created'"
       ).run(orderId);
 
-      const payment = db
-        .prepare('SELECT * FROM payments WHERE razorpay_order_id = ?')
-        .get(orderId) as any;
-      if (payment) {
-        transitionJob(payment.job_id, 'failed', 'Payment failed');
+      // Only transition job if we actually changed the payment status
+      if ((failResult as any).changes > 0) {
+        const payment = db
+          .prepare('SELECT * FROM payments WHERE razorpay_order_id = ?')
+          .get(orderId) as any;
+        if (payment) {
+          transitionJob(payment.job_id, 'failed', 'Payment failed');
+        }
       }
     }
 
