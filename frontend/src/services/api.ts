@@ -75,6 +75,13 @@ export const api = {
     return res.json();
   },
 
+  // Supply levels
+  async getSupplyLevels(printerName?: string) {
+    const query = printerName ? `?printer=${encodeURIComponent(printerName)}` : '';
+    const res = await fetch(`${API_BASE}/api/printer/supplies${query}`);
+    return res.json();
+  },
+
   // Payment
   async createPayment(jobId: string, token: string) {
     const res = await fetch(`${API_BASE}/api/payment/create`, {

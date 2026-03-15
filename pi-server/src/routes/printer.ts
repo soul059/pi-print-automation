@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getPrinterStatus, listPrinters, getAllPrinterStatuses } from '../services/cups';
+import { getPrinterStatus, listPrinters, getAllPrinterStatuses, getSupplyLevels } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
 import { getQueueDepth, getEstimatedWaitMinutes } from '../services/queue';
 import { env } from '../config/env';
@@ -71,5 +71,16 @@ printerRouter.get('/status', async (_req: Request, res: Response) => {
       status: 'error',
       error: err.message,
     });
+  }
+});
+
+// Public: supply levels (ink/toner/paper)
+printerRouter.get('/supplies', async (req: Request, res: Response) => {
+  try {
+    const printerName = req.query.printer as string | undefined;
+    const supplies = await getSupplyLevels(printerName);
+    res.json({ supplies });
+  } catch (err: any) {
+    res.json({ supplies: [], error: err.message });
   }
 });

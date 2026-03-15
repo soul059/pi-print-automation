@@ -235,3 +235,51 @@ export async function getLeastBusyPrinter(): Promise<string | null> {
 
   return leastBusy;
 }
+
+export interface SupplyLevel {
+  name: string;
+  level: number; // 0-100, -1 = unknown
+  type: 'toner' | 'ink' | 'paper' | 'other';
+}
+
+export async function getSupplyLevels(printerName?: string): Promise<SupplyLevel[]> {
+  const name = printerName || (await getDefaultPrinter());
+  if (!name) return [];
+  const safeName = sanitizePrinterName(name);
+
+  try {
+    // CUPS reports supply levels via lpstat -l -p or IPP attributes
+    const output = await execFileAsync('lpstat', ['-l', '-p', safeName]);
+    const supplies: SupplyLevel[] = [];
+
+    // Parse marker-names / marker-levels from verbose output
+    // Format varies, but common patterns:
+    // "marker-names: Black,Cyan,Magenta,Yellow"
+    // "marker-levels: 75,50,25,100"
+    const namesMatch = output.match(/marker-names[=:]\s*(.+)/i);
+    const levelsMatch = output.match(/marker-levels[=:]\s*(.+)/i);
+    const typesMatch = output.match(/marker-types[=:]\s*(.+)/i);
+
+    if (namesMatch && levelsMatch) {
+      const names = namesMatch[1].split(',').map(s => s.trim());
+      const levels = levelsMatch[1].split(',').map(s => parseInt(s.trim(), 10));
+      const types = typesMatch ? typesMatch[1].split(',').map(s => s.trim().toLowerCase()) : [];
+
+      for (let i = 0; i < names.length; i++) {
+        const supplyType = types[i]?.includes('toner') ? 'toner'
+          : types[i]?.includes('ink') ? 'ink'
+          : types[i]?.includes('paper') ? 'paper'
+          : 'other';
+        supplies.push({
+          name: names[i],
+          level: isNaN(levels[i]) ? -1 : Math.max(0, Math.min(100, levels[i])),
+          type: supplyType,
+        });
+      }
+    }
+
+    return supplies;
+  } catch {
+    return [];
+  }
+}

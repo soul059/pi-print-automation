@@ -50,10 +50,14 @@ export default function UploadPage() {
   const [selectedPrinter, setSelectedPrinter] = useState('auto');
   const [printers, setPrinters] = useState<Array<{ name: string; online: boolean; status: string; accepting: boolean }>>([]);
   const [pricingConfig, setPricingConfig] = useState<{ bwPerPage: number; colorPerPage: number; duplexDiscount: number } | null>(null);
+  const [supplyLevels, setSupplyLevels] = useState<Array<{ name: string; level: number; type: string }>>([]);
 
-  // Fetch pricing config on mount
+  // Fetch pricing config and supply levels on mount
   useEffect(() => {
     api.getPricingConfig().then(setPricingConfig).catch(() => {});
+    api.getSupplyLevels().then((data: any) => {
+      if (data.supplies) setSupplyLevels(data.supplies);
+    }).catch(() => {});
   }, []);
 
   // Fetch available printers when files are selected
@@ -167,6 +171,28 @@ export default function UploadPage() {
       </div>
 
       <PrinterStatusBadge enabled={files.length > 0} />
+
+      {supplyLevels.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-3">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Supply Levels</p>
+          <div className="flex flex-wrap gap-3">
+            {supplyLevels.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                <span className="dark:text-gray-300">{s.name}</span>
+                <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      s.level > 50 ? 'bg-green-500' : s.level > 20 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${s.level >= 0 ? s.level : 0}%` }}
+                  />
+                </div>
+                <span className="text-gray-400 dark:text-gray-500 w-8">{s.level >= 0 ? `${s.level}%` : '?'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {limitInfo && (
         <div className={`flex items-start gap-2 text-sm px-4 py-3 rounded-lg ${
