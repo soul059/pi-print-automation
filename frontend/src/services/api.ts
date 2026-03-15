@@ -127,6 +127,14 @@ export const api = {
     return res.json();
   },
 
+  // User print stats
+  async getJobStats(token: string) {
+    const res = await fetch(`${API_BASE}/api/jobs/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
   // Admin
   async adminLogin(username: string, password: string) {
     const res = await fetch(`${API_BASE}/api/admin/login`, {

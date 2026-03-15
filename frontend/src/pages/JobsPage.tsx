@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { FileText, Loader2, Plus, Download } from 'lucide-react';
+import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   uploaded: 'bg-gray-100 text-gray-700',
@@ -19,6 +19,8 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -32,6 +34,9 @@ export default function JobsPage() {
       .finally(() => {
         setLoading(false);
       });
+    api.getJobStats(token).then((data) => {
+      if (data.stats) setStats(data);
+    }).catch(() => {});
   }, [token]);
 
   if (loading) {
@@ -78,6 +83,57 @@ export default function JobsPage() {
           </Link>
         </div>
       </div>
+
+      {stats && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 overflow-hidden">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="w-full flex items-center justify-between p-4 text-sm font-medium dark:text-white hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+          >
+            <span className="flex items-center gap-2"><BarChart3 size={16} className="text-primary-500" /> My Print Stats</span>
+            {showStats ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showStats && (
+            <div className="border-t dark:border-gray-700 p-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-primary-600">{stats.stats.completedJobs}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Completed</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.stats.totalPages}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Pages Printed</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">₹{(stats.stats.totalSpent / 100).toFixed(0)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Total Spent</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">₹{(stats.stats.avgJobPrice / 100).toFixed(0)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Avg per Job</p>
+                </div>
+              </div>
+              {stats.monthly?.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Monthly Trend</p>
+                  <div className="flex items-end gap-1 h-16">
+                    {stats.monthly.map((m: any, i: number) => {
+                      const maxSpent = Math.max(...stats.monthly.map((x: any) => x.spent), 1);
+                      const height = Math.max(4, (m.spent / maxSpent) * 100);
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                          <div className="w-full bg-primary-400 dark:bg-primary-600 rounded-t" style={{ height: `${height}%` }} title={`₹${(m.spent / 100).toFixed(0)} · ${m.jobs} jobs`} />
+                          <span className="text-[9px] text-gray-400">{m.month.slice(5)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {jobs.length === 0 ? (
         <div className="text-center py-12">

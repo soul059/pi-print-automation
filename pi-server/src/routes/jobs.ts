@@ -6,6 +6,56 @@ import { getQueuePosition } from '../services/queue';
 
 export const jobsRouter = Router();
 
+// User print history stats
+jobsRouter.get('/stats', requireAuth, (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const email = req.userEmail!;
+
+  const totals = db.prepare(
+    `SELECT COUNT(*) as totalJobs,
+            COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completedJobs,
+            COALESCE(SUM(CASE WHEN status = 'completed' THEN total_pages * copies ELSE 0 END), 0) as totalPages,
+            COALESCE(SUM(CASE WHEN status = 'completed' THEN price ELSE 0 END), 0) as totalSpent,
+            COALESCE(SUM(CASE WHEN status IN ('failed','failed_permanent') THEN 1 ELSE 0 END), 0) as failedJobs
+     FROM jobs WHERE user_email = ?`
+  ).get(email) as any;
+
+  // Monthly breakdown (last 6 months)
+  const monthly = db.prepare(
+    `SELECT strftime('%Y-%m', created_at) as month,
+            COUNT(*) as jobs,
+            COALESCE(SUM(CASE WHEN status = 'completed' THEN price ELSE 0 END), 0) as spent,
+            COALESCE(SUM(CASE WHEN status = 'completed' THEN total_pages * copies ELSE 0 END), 0) as pages
+     FROM jobs WHERE user_email = ? AND created_at >= datetime('now', '-6 months')
+     GROUP BY month ORDER BY month`
+  ).all(email) as any[];
+
+  // Most used settings
+  const topPaperSize = db.prepare(
+    `SELECT paper_size, COUNT(*) as count FROM jobs WHERE user_email = ? GROUP BY paper_size ORDER BY count DESC LIMIT 1`
+  ).get(email) as any;
+
+  const colorVsBw = db.prepare(
+    `SELECT color, COUNT(*) as count FROM jobs WHERE user_email = ? GROUP BY color ORDER BY count DESC`
+  ).all(email) as any[];
+
+  res.json({
+    stats: {
+      totalJobs: totals?.totalJobs ?? 0,
+      completedJobs: totals?.completedJobs ?? 0,
+      failedJobs: totals?.failedJobs ?? 0,
+      totalPages: totals?.totalPages ?? 0,
+      totalSpent: totals?.totalSpent ?? 0,
+      avgJobPrice: totals?.completedJobs > 0 ? Math.round(totals.totalSpent / totals.completedJobs) : 0,
+    },
+    monthly,
+    preferences: {
+      topPaperSize: topPaperSize?.paper_size || 'A4',
+      colorBreakdown: colorVsBw,
+    },
+  });
+});
+
 function escapeCsvField(value: string): string {
   if (value == null) return '';
   const str = String(value);
