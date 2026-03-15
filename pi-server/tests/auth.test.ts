@@ -99,8 +99,8 @@ describe('verifyToken', () => {
   it('returns null for admin token (no email field)', () => {
     const adminToken = generateAdminToken(1, 'admin', 'admin');
     const result = verifyToken(adminToken);
-    // Admin tokens don't have email/name in the expected format
-    expect(result).toEqual({ email: undefined, name: undefined });
+    // Admin tokens should be rejected by verifyToken (type confusion prevention)
+    expect(result).toBeNull();
   });
 });
 

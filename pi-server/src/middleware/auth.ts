@@ -98,8 +98,12 @@ export function verifyToken(token: string): { email: string; name: string } | nu
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET, {
       issuer: 'pi-print-service',
-    }) as jwt.JwtPayload & { email: string; name: string };
-    return { email: decoded.email, name: decoded.name };
+    }) as jwt.JwtPayload & { email?: string; name?: string; type?: string };
+    // Reject non-access tokens (admin tokens have no type or email)
+    if (decoded.type !== 'access' || !decoded.email) {
+      return null;
+    }
+    return { email: decoded.email, name: decoded.name || '' };
   } catch {
     return null;
   }
@@ -151,6 +155,14 @@ export function requireAdmin(req: AdminRequest, res: Response, next: NextFunctio
 
     if (!decoded.role || decoded.role !== 'admin') {
       res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    // Verify admin account is still active in DB
+    const adminDb = getDb();
+    const admin = adminDb.prepare('SELECT active FROM admins WHERE id = ? AND active = 1').get(decoded.adminId) as any;
+    if (!admin) {
+      res.status(403).json({ error: 'Admin account deactivated or not found' });
       return;
     }
 

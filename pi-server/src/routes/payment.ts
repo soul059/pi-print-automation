@@ -9,7 +9,7 @@ import { getJob, transitionJob } from '../models/job';
 import { getDb } from '../db/connection';
 import { getPrinterStatus } from '../services/cups';
 import { enqueueJob } from '../services/queue';
-import { debitWallet } from '../services/wallet';
+import { debitWallet, creditWallet } from '../services/wallet';
 import { processRefund } from '../services/refund';
 import { nanoid } from 'nanoid';
 
@@ -350,27 +350,51 @@ paymentRouter.post('/webhook', webhookLimiter, async (req: Request, res: Respons
         return;
       }
 
-      // Skip wallet topup payments — handled by /wallet/topup/verify
+      // Handle wallet topup payments — credit wallet as backup if /topup/verify was never called
       if (payment.payment_type === 'wallet_topup') {
-        res.json({ status: 'ok', message: 'Wallet topup handled by verify endpoint' });
+        if (payment.status === 'captured') {
+          res.json({ status: 'ok', message: 'Already processed' });
+          return;
+        }
+        const topupUpdate = db.prepare(
+          `UPDATE payments SET razorpay_payment_id = ?, status = 'captured', webhook_verified = 1, updated_at = datetime('now')
+           WHERE razorpay_order_id = ? AND status = 'created'`
+        ).run(paymentEntity.id, orderId);
+        if ((topupUpdate as any).changes > 0) {
+          // Credit wallet using email from Razorpay order notes
+          try {
+            const rz = getRazorpay();
+            const order = await rz.orders.fetch(orderId);
+            const userEmail = order.notes?.email ? String(order.notes.email) : null;
+            if (userEmail) {
+              creditWallet(userEmail, payment.amount, String(paymentEntity.id), `Wallet top-up of ₹${(payment.amount / 100).toFixed(2)}`);
+              logger.info({ email: userEmail, amount: payment.amount }, 'Webhook: wallet topup credited');
+            } else {
+              logger.error({ orderId }, 'Webhook: wallet topup missing email in order notes');
+            }
+          } catch (topupErr: any) {
+            logger.error({ orderId, err: topupErr.message }, 'Webhook: wallet topup credit failed');
+          }
+        }
+        res.json({ status: 'ok' });
         return;
       }
 
-      // Idempotent: skip if already processed
-      if (payment.status === 'captured' && payment.webhook_verified) {
-        res.json({ status: 'ok', message: 'Already processed' });
-        return;
-      }
-
-      // Update payment
-      db.prepare(
+      // Atomic: only capture if still 'created' — prevents overwriting failed/captured status
+      const updateResult = db.prepare(
         `UPDATE payments SET 
           razorpay_payment_id = ?,
           status = 'captured',
           webhook_verified = 1,
           updated_at = datetime('now')
-        WHERE razorpay_order_id = ?`
+        WHERE razorpay_order_id = ? AND status = 'created'`
       ).run(paymentEntity.id, orderId);
+
+      if ((updateResult as any).changes === 0) {
+        // Already processed (captured or failed) — skip
+        res.json({ status: 'ok', message: 'Already processed' });
+        return;
+      }
 
       // Transition job and enqueue (only from payment_pending state)
       const job = getJob(payment.job_id);

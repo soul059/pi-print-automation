@@ -126,7 +126,7 @@ walletRouter.post('/topup/verify', requireAuth, async (req: AuthRequest, res: Re
     // Fetch order from Razorpay to confirm the authenticated user matches
     const rz = getRazorpay();
     const order = await rz.orders.fetch(razorpay_order_id);
-    if (order.notes?.email && order.notes.email !== email) {
+    if (!order.notes?.email || order.notes.email !== email) {
       res.status(403).json({ error: 'Order does not belong to this user' });
       return;
     }
