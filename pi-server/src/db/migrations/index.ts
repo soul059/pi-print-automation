@@ -128,11 +128,11 @@ const migrations = [
     name: '003_seed_default_policy',
     statements: [
       `INSERT OR IGNORE INTO email_policies (name, domain, pattern, department_key, active)
-       VALUES ('IT Undergraduate B', 'ddu.ac.in', '^[0-9]{2}itub[0-9]{3}$', 'itub', 1)`,
+       VALUES ('IT Department', 'ddu.ac.in', '^[0-9]{2}it[a-z]+[0-9]{3}$', 'it', 1)`,
       `INSERT OR IGNORE INTO email_policies (name, domain, pattern, department_key, active)
-       VALUES ('CS Undergraduate B', 'ddu.ac.in', '^[0-9]{2}csub[0-9]{3}$', 'csub', 1)`,
+       VALUES ('CS Department', 'ddu.ac.in', '^[0-9]{2}cs[a-z]+[0-9]{3}$', 'cs', 1)`,
       `INSERT OR IGNORE INTO email_policies (name, domain, pattern, department_key, active)
-       VALUES ('EC Undergraduate B', 'ddu.ac.in', '^[0-9]{2}ecub[0-9]{3}$', 'ecub', 1)`,
+       VALUES ('EC Department', 'ddu.ac.in', '^[0-9]{2}ec[a-z]+[0-9]{3}$', 'ec', 1)`,
     ],
   },
   {
@@ -210,6 +210,14 @@ const migrations = [
     name: '009_scheduled_at',
     statements: [
       `ALTER TABLE jobs ADD COLUMN scheduled_at TEXT`,
+    ],
+  },
+  {
+    name: '010_update_email_policy_patterns',
+    statements: [
+      `UPDATE email_policies SET name = 'IT Department', pattern = '^[0-9]{2}it[a-z]+[0-9]{3}$', department_key = 'it' WHERE department_key = 'itub'`,
+      `UPDATE email_policies SET name = 'CS Department', pattern = '^[0-9]{2}cs[a-z]+[0-9]{3}$', department_key = 'cs' WHERE department_key = 'csub'`,
+      `UPDATE email_policies SET name = 'EC Department', pattern = '^[0-9]{2}ec[a-z]+[0-9]{3}$', department_key = 'ec' WHERE department_key = 'ecub'`,
     ],
   },
 ];

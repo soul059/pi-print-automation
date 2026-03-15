@@ -5,9 +5,9 @@ import { describe, it, expect } from 'vitest';
 
 describe('Email Pattern Matching', () => {
   const policies = [
-    { pattern: '^[0-9]{2}itub[0-9]{3}$', department: 'IT Undergraduate B' },
-    { pattern: '^[0-9]{2}csub[0-9]{3}$', department: 'CS Undergraduate B' },
-    { pattern: '^[0-9]{2}ecub[0-9]{3}$', department: 'EC Undergraduate B' },
+    { pattern: '^[0-9]{2}it[a-z]+[0-9]{3}$', department: 'IT Department' },
+    { pattern: '^[0-9]{2}cs[a-z]+[0-9]{3}$', department: 'CS Department' },
+    { pattern: '^[0-9]{2}ec[a-z]+[0-9]{3}$', department: 'EC Department' },
   ];
 
   function matchPolicy(localPart: string): string | null {
@@ -17,16 +17,20 @@ describe('Email Pattern Matching', () => {
     return null;
   }
 
-  it('matches valid IT email', () => {
-    expect(matchPolicy('23itub017')).toBe('IT Undergraduate B');
+  it('matches valid IT email (itub format)', () => {
+    expect(matchPolicy('23itub017')).toBe('IT Department');
+  });
+
+  it('matches valid IT email (itubs format)', () => {
+    expect(matchPolicy('23itubs017')).toBe('IT Department');
   });
 
   it('matches valid CS email', () => {
-    expect(matchPolicy('22csub042')).toBe('CS Undergraduate B');
+    expect(matchPolicy('22csub042')).toBe('CS Department');
   });
 
   it('matches valid EC email', () => {
-    expect(matchPolicy('24ecub001')).toBe('EC Undergraduate B');
+    expect(matchPolicy('24ecub001')).toBe('EC Department');
   });
 
   it('rejects unknown department', () => {
@@ -39,7 +43,7 @@ describe('Email Pattern Matching', () => {
   });
 
   it('rejects partial matches', () => {
-    expect(matchPolicy('23itub')).toBeNull(); // missing roll number
+    expect(matchPolicy('23it')).toBeNull(); // missing letters+roll
     expect(matchPolicy('itub017')).toBeNull(); // missing year
   });
 });
