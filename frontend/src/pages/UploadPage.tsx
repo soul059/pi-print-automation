@@ -5,6 +5,7 @@ import { usePrinterStatus } from '../hooks/usePrinterStatus';
 import { usePreferences } from '../hooks/usePreferences';
 import { api } from '../services/api';
 import PrinterStatusBadge from '../components/PrinterStatusBadge';
+import LocalPdfPreview from '../components/LocalPdfPreview';
 import {
   Upload,
   FileText,
@@ -16,6 +17,8 @@ import {
   AlertTriangle,
   IndianRupee,
   Clock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/I18nContext';
 
@@ -34,6 +37,8 @@ export default function UploadPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewFileIndex, setPreviewFileIndex] = useState(0);
   const [limitInfo, setLimitInfo] = useState<{ allowed: boolean; used: number; limit: number; remaining: number } | null>(null);
 
   // Only connect to printer status after files are selected
@@ -280,6 +285,43 @@ export default function UploadPage() {
             </div>
           )}
         </div>
+
+        {/* PDF Preview */}
+        {files.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowPreview(!showPreview)}
+              className="w-full flex items-center justify-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl py-3 transition"
+            >
+              {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPreview ? 'Hide Preview' : 'Preview Document'}
+            </button>
+            {showPreview && (
+              <div className="mt-3 space-y-2">
+                {files.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {files.map((f, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setPreviewFileIndex(i)}
+                        className={`shrink-0 px-3 py-1.5 text-xs rounded-lg border transition ${
+                          previewFileIndex === i
+                            ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-400 dark:border-primary-600 text-primary-700 dark:text-primary-300 font-medium'
+                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {f.name.length > 20 ? f.name.slice(0, 17) + '…' : f.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <LocalPdfPreview file={files[previewFileIndex] || files[0]} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Print Options */}
         {files.length > 0 && (
