@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { requireAdmin, generateAdminToken } from '../middleware/auth';
 import { getAllPolicies, createPolicy, updatePolicy, deletePolicy } from '../services/policy';
 import { getAllJobs, transitionJob, getJob } from '../models/job';
-import { getPrinterStatus, getAllPrinterStatuses, enablePrinter, disablePrinter, listPrinters } from '../services/cups';
+import { getPrinterStatus, getAllPrinterStatuses, enablePrinter, disablePrinter, listPrinters, cancelJob } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
 import { enqueueJob, getQueueDepth } from '../services/queue';
 import { processRefund } from '../services/refund';
@@ -228,7 +228,7 @@ adminRouter.post('/jobs/:jobId/retry', (req: Request<{jobId: string}>, res: Resp
   res.json({ success: true, jobId: job.id, status: 'paid' });
 });
 
-adminRouter.post('/jobs/:jobId/cancel', (req: Request<{jobId: string}>, res: Response) => {
+adminRouter.post('/jobs/:jobId/cancel', async (req: Request<{jobId: string}>, res: Response) => {
   const job = getJob(req.params.jobId);
   if (!job) {
     res.status(404).json({ error: 'Job not found' });
@@ -240,12 +240,45 @@ adminRouter.post('/jobs/:jobId/cancel', (req: Request<{jobId: string}>, res: Res
     return;
   }
 
-  const db = getDb();
-  db.prepare(
-    "UPDATE jobs SET status = 'failed_permanent', error_message = 'Cancelled by admin', updated_at = datetime('now') WHERE id = ?"
-  ).run(job.id);
+  // If job is currently printing, try to cancel CUPS job first
+  if (job.status === 'printing' && job.cups_job_id) {
+    try {
+      await cancelJob(job.cups_job_id);
+    } catch (err: any) {
+      logger.warn({ jobId: job.id, err: err.message }, 'CUPS cancel attempt failed');
+    }
+  }
 
-  res.json({ success: true, jobId: job.id, status: 'failed_permanent' });
+  // Use state machine: transition through valid paths
+  // printing → failed → failed_permanent
+  // paid → printing → failed → failed_permanent (need to go through valid path)
+  // uploaded/payment_pending → failed → failed_permanent
+  const db = getDb();
+  if (job.status === 'printing') {
+    transitionJob(job.id, 'failed', 'Cancelled by admin');
+    transitionJob(job.id, 'failed_permanent');
+  } else if (job.status === 'paid') {
+    // paid → printing → failed → failed_permanent
+    const toPrinting = transitionJob(job.id, 'printing');
+    if (toPrinting) {
+      transitionJob(job.id, 'failed', 'Cancelled by admin');
+      transitionJob(job.id, 'failed_permanent');
+    }
+  } else if (job.status === 'payment_pending') {
+    transitionJob(job.id, 'failed', 'Cancelled by admin');
+    transitionJob(job.id, 'failed_permanent');
+  } else if (job.status === 'failed') {
+    transitionJob(job.id, 'failed_permanent');
+  } else {
+    // uploaded — no payment yet, just mark directly
+    db.prepare(
+      "UPDATE jobs SET status = 'failed_permanent', error_message = 'Cancelled by admin', updated_at = datetime('now') WHERE id = ?"
+    ).run(job.id);
+  }
+
+  // Verify final state
+  const updated = getJob(job.id);
+  res.json({ success: true, jobId: job.id, status: updated?.status || 'failed_permanent' });
 });
 
 // --- Refund ---

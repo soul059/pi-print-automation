@@ -50,9 +50,19 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
       return;
     }
 
+    // Lock the job by transitioning FIRST — prevents concurrent payment creation race
+    const toPending = transitionJob(job.id, 'payment_pending');
+    if (!toPending) {
+      res.status(409).json({ error: 'Payment is already being processed for this job' });
+      return;
+    }
+
     // Pre-payment printer status gate
     const printerStatus = await getPrinterStatus();
     if (!printerStatus.online) {
+      // Rollback: transition back so user can try again
+      const db0 = getDb();
+      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
       res.status(503).json({
         error: 'Printer is offline',
         printerStatus,
@@ -62,6 +72,8 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
     }
 
     if (!printerStatus.accepting) {
+      const db0 = getDb();
+      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
       res.status(503).json({
         error: 'Printer is not accepting jobs',
         printerStatus,
@@ -72,15 +84,23 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
 
     // Create Razorpay order
     const rz = getRazorpay();
-    const order = await rz.orders.create({
-      amount: job.price,
-      currency: 'INR',
-      receipt: job.id,
-      notes: {
-        jobId: job.id,
-        email: job.user_email,
-      },
-    });
+    let order;
+    try {
+      order = await rz.orders.create({
+        amount: job.price,
+        currency: 'INR',
+        receipt: job.id,
+        notes: {
+          jobId: job.id,
+          email: job.user_email,
+        },
+      });
+    } catch (rzErr: any) {
+      // Rollback on Razorpay failure
+      const db0 = getDb();
+      db0.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
+      throw rzErr;
+    }
 
     // Store payment record
     const db = getDb();
@@ -89,9 +109,6 @@ paymentRouter.post('/create', requireAuth, async (req: AuthRequest, res: Respons
       `INSERT INTO payments (id, job_id, razorpay_order_id, amount, currency, status)
        VALUES (?, ?, ?, ?, ?, 'created')`
     ).run(paymentId, job.id, order.id, job.price, 'INR');
-
-    // Transition job to payment_pending
-    transitionJob(job.id, 'payment_pending');
 
     res.json({
       orderId: order.id,
