@@ -67,9 +67,34 @@ function saveDb(): void {
   try {
     const data = db.export();
     const buffer = Buffer.from(data);
-    fs.writeFileSync(env.DB_PATH, buffer);
+    // Atomic write: write to temp file then rename (prevents corruption on power loss)
+    const tmpPath = env.DB_PATH + '.tmp';
+    fs.writeFileSync(tmpPath, buffer);
+    fs.renameSync(tmpPath, env.DB_PATH);
   } catch (err: any) {
     logger.error({ err: err.message }, 'Failed to save database');
+  }
+}
+
+// Periodic backup — keeps a .bak copy every 5 minutes
+let backupInterval: ReturnType<typeof setInterval> | null = null;
+
+function startBackup(): void {
+  backupInterval = setInterval(() => {
+    try {
+      if (fs.existsSync(env.DB_PATH)) {
+        fs.copyFileSync(env.DB_PATH, env.DB_PATH + '.bak');
+      }
+    } catch (err: any) {
+      logger.error({ err: err.message }, 'DB backup failed');
+    }
+  }, 5 * 60 * 1000);
+}
+
+function stopBackup(): void {
+  if (backupInterval) {
+    clearInterval(backupInterval);
+    backupInterval = null;
   }
 }
 
@@ -84,15 +109,35 @@ export async function initDb(): Promise<DbWrapper> {
   const SQL = await initSqlJs();
 
   if (fs.existsSync(env.DB_PATH)) {
-    const fileBuffer = fs.readFileSync(env.DB_PATH);
-    db = new SQL.Database(fileBuffer);
-    logger.info({ path: env.DB_PATH }, 'Database loaded from file');
+    try {
+      const fileBuffer = fs.readFileSync(env.DB_PATH);
+      db = new SQL.Database(fileBuffer);
+      logger.info({ path: env.DB_PATH }, 'Database loaded from file');
+    } catch (loadErr: any) {
+      // Main DB corrupted — try loading from temp backup, then .bak
+      const tmpPath = env.DB_PATH + '.tmp';
+      const bakPath = env.DB_PATH + '.bak';
+      if (fs.existsSync(tmpPath)) {
+        logger.warn({ err: loadErr.message }, 'Main DB corrupted, loading from temp file');
+        const tmpBuffer = fs.readFileSync(tmpPath);
+        db = new SQL.Database(tmpBuffer);
+      } else if (fs.existsSync(bakPath)) {
+        logger.warn({ err: loadErr.message }, 'Main DB corrupted, loading from backup');
+        const bakBuffer = fs.readFileSync(bakPath);
+        db = new SQL.Database(bakBuffer);
+      } else {
+        throw loadErr;
+      }
+    }
   } else {
     db = new SQL.Database();
     logger.info({ path: env.DB_PATH }, 'New database created');
   }
 
   db.run('PRAGMA foreign_keys = ON');
+
+  // Start periodic backup
+  startBackup();
 
   dbWrapper = {
     exec(sql: string) {
@@ -104,6 +149,7 @@ export async function initDb(): Promise<DbWrapper> {
     },
     close() {
       if (db) {
+        stopBackup();
         saveDb();
         db.close();
         db = null;

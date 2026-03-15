@@ -22,8 +22,8 @@ export async function processRefund(jobId: string): Promise<{ success: boolean; 
     return { success: false, error: 'No captured payment found for this job' };
   }
 
-  // Check if already refunded or in progress
-  if (payment.refund_status === 'refunded' || payment.refund_status === 'pending') {
+  // Check if already refunded (pending refunds are retried, not skipped)
+  if (payment.refund_status === 'refunded') {
     return { success: true, refundId: payment.refund_id };
   }
 

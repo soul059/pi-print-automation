@@ -43,6 +43,24 @@ async function main() {
   // Recover any paid jobs that were interrupted
   startJobRecovery();
 
+  // Recover any pending refunds that were interrupted by crash/power cut
+  {
+    const { getDb: getDatabase } = await import('./db/connection');
+    const { processRefund } = await import('./services/refund');
+    const recDb = getDatabase();
+    const pendingRefunds = recDb
+      .prepare("SELECT job_id FROM payments WHERE refund_status = 'pending'")
+      .all() as Array<{ job_id: string }>;
+    if (pendingRefunds.length > 0) {
+      logger.info({ count: pendingRefunds.length }, 'Recovering pending refunds');
+      for (const { job_id } of pendingRefunds) {
+        processRefund(job_id).catch(err =>
+          logger.error({ jobId: job_id, err: err.message }, 'Pending refund recovery failed')
+        );
+      }
+    }
+  }
+
   // Start scheduler for scheduled print jobs
   startScheduler();
 
@@ -60,7 +78,16 @@ async function main() {
     logger.info('Shutting down...');
     stopScheduler();
     stopCleanup();
+
+    // Force exit after 10 seconds if graceful shutdown hangs
+    const forceExit = setTimeout(() => {
+      logger.warn('Forced shutdown after timeout');
+      closeDb();
+      process.exit(1);
+    }, 10_000);
+
     httpServer.close(() => {
+      clearTimeout(forceExit);
       closeDb();
       process.exit(0);
     });
@@ -68,6 +95,11 @@ async function main() {
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  process.on('uncaughtException', (err) => {
+    logger.fatal({ err: err.message }, 'Uncaught exception — saving DB and exiting');
+    closeDb();
+    process.exit(1);
+  });
 }
 
 main().catch((err) => {

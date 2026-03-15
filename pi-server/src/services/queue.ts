@@ -167,7 +167,27 @@ async function processJob(jobId: string): Promise<void> {
 
 export function startJobRecovery(): void {
   const db = getDb();
-  // Recover paid jobs that were interrupted (e.g., server restart)
+
+  // 1. Recover payment_pending jobs with captured payments (power cut between capture and enqueue)
+  const orphanedPayments = db
+    .prepare(`SELECT j.id FROM jobs j
+      JOIN payments p ON p.job_id = j.id
+      WHERE j.status = 'payment_pending' AND p.status = 'captured'
+      ORDER BY j.created_at ASC`)
+    .all() as Array<{ id: string }>;
+
+  if (orphanedPayments.length > 0) {
+    logger.info({ count: orphanedPayments.length }, 'Recovering payment_pending jobs with captured payments');
+    for (const job of orphanedPayments) {
+      const transitioned = transitionJob(job.id, 'paid');
+      if (transitioned) {
+        enqueueJob(job.id);
+        logger.info({ jobId: job.id }, 'Recovered orphaned paid job');
+      }
+    }
+  }
+
+  // 2. Recover paid/printing jobs that were interrupted (e.g., server restart)
   // Exclude scheduled jobs that are still in the future (the scheduler handles those)
   const stuckJobs = db
     .prepare("SELECT id, status, scheduled_at FROM jobs WHERE status IN ('paid', 'printing') ORDER BY created_at ASC")
