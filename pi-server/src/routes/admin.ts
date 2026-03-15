@@ -198,10 +198,29 @@ adminRouter.post('/jobs/:jobId/retry', (req: Request<{jobId: string}>, res: Resp
     return;
   }
 
-  // Reset to paid and enqueue
+  // Block retry if job was already refunded — prevents free printing
   const db = getDb();
+  const payment = db.prepare(
+    "SELECT refund_status FROM payments WHERE job_id = ? AND status = 'captured' ORDER BY created_at DESC LIMIT 1"
+  ).get(job.id) as any;
+
+  if (payment?.refund_status === 'refunded') {
+    res.status(400).json({ error: 'Cannot retry: this job was already refunded. Create a new print job instead.' });
+    return;
+  }
+
+  // Use state machine for transition
+  const failedToPaid = job.status === 'failed'
+    ? transitionJob(job.id, 'paid')
+    : (() => { transitionJob(job.id, 'failed', 'Admin retry'); return transitionJob(job.id, 'paid'); })();
+
+  if (!failedToPaid) {
+    res.status(400).json({ error: 'Failed to transition job for retry' });
+    return;
+  }
+
   db.prepare(
-    "UPDATE jobs SET status = 'paid', retry_count = 0, error_message = NULL, updated_at = datetime('now') WHERE id = ?"
+    "UPDATE jobs SET retry_count = 0, error_message = NULL, updated_at = datetime('now') WHERE id = ?"
   ).run(job.id);
   enqueueJob(job.id);
 

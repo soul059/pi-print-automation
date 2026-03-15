@@ -136,13 +136,20 @@ walletRouter.post('/topup/verify', requireAuth, async (req: AuthRequest, res: Re
       return;
     }
 
-    // Update payment record
-    db.prepare(
+    // Atomic: only update if still 'created' — prevents double-credit race condition
+    const updateResult = db.prepare(
       `UPDATE payments SET razorpay_payment_id = ?, razorpay_signature = ?, status = 'captured', updated_at = datetime('now')
-       WHERE razorpay_order_id = ?`
+       WHERE razorpay_order_id = ? AND status = 'created'`
     ).run(razorpay_payment_id, razorpay_signature, razorpay_order_id);
 
-    // Credit wallet
+    if ((updateResult as any).changes === 0) {
+      // Another concurrent request already processed this payment
+      const balance = getBalance(email);
+      res.json({ success: true, balance });
+      return;
+    }
+
+    // Credit wallet — only reached if we won the race
     const result = creditWallet(email, payment.amount, razorpay_payment_id, `Wallet top-up of ₹${(payment.amount / 100).toFixed(2)}`);
 
     logger.info({ email, amount: payment.amount, balance: result.balance }, 'Wallet top-up successful');

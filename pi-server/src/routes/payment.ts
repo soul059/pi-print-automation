@@ -203,9 +203,21 @@ paymentRouter.post('/wallet', requireAuth, async (req: AuthRequest, res: Respons
       return;
     }
 
-    // Debit wallet
+    // Transition job FIRST to prevent double-payment race condition
+    const toPending = transitionJob(job.id, 'payment_pending');
+    if (!toPending) {
+      res.status(409).json({ error: 'Job is already being processed for payment' });
+      return;
+    }
+
+    // Debit wallet (job is now in payment_pending — safe from concurrent payment)
     const debitResult = debitWallet(req.userEmail!, job.price, jobId, `Print job: ${job.file_name}`);
     if (!debitResult.success) {
+      // Rollback: transition back to uploaded
+      transitionJob(job.id, 'failed', 'Insufficient wallet balance');
+      // Also reset back to uploaded for retry with different payment method
+      const db2 = getDb();
+      db2.prepare("UPDATE jobs SET status = 'uploaded', updated_at = datetime('now') WHERE id = ?").run(job.id);
       res.status(400).json({ error: 'Insufficient wallet balance', balance: debitResult.balance });
       return;
     }
@@ -218,8 +230,7 @@ paymentRouter.post('/wallet', requireAuth, async (req: AuthRequest, res: Respons
        VALUES (?, ?, ?, ?, 'captured', 'wallet')`
     ).run(paymentId, job.id, job.price, 'INR');
 
-    // Transition job to payment_pending then paid
-    transitionJob(job.id, 'payment_pending');
+    // Transition to paid
     const transitioned = transitionJob(job.id, 'paid');
     if (transitioned) {
       const isScheduledForLater = job.scheduled_at && new Date(job.scheduled_at) > new Date();
