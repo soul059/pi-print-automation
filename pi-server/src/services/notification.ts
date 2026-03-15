@@ -1,11 +1,31 @@
 import { getMailTransporter } from './email';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { getDb } from '../db/connection';
+
+interface NotificationPrefs {
+  email_on_completed: number;
+  email_on_failed: number;
+}
+
+function getPrefs(email: string): NotificationPrefs {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT * FROM notification_preferences WHERE user_email = ?').get(email) as any;
+    if (row) return row;
+  } catch { /* table may not exist yet */ }
+  return { email_on_completed: 1, email_on_failed: 1 };
+}
 
 export async function notifyJobCompleted(
   email: string,
   jobData: { jobId: string; fileName: string; printMode: string }
 ): Promise<void> {
+  const prefs = getPrefs(email);
+  if (!prefs.email_on_completed) {
+    logger.info({ email }, 'Skipping completion notification (user opted out)');
+    return;
+  }
   const collectMsg =
     jobData.printMode === 'later'
       ? 'Your printout is ready for collection.'
@@ -33,6 +53,11 @@ export async function notifyJobFailed(
   email: string,
   jobData: { jobId: string; fileName: string; error?: string; refunded?: boolean }
 ): Promise<void> {
+  const prefs = getPrefs(email);
+  if (!prefs.email_on_failed) {
+    logger.info({ email }, 'Skipping failure notification (user opted out)');
+    return;
+  }
   const refundMsg = jobData.refunded
     ? '<p style="color: #16a34a;">💰 Your payment has been refunded automatically.</p>'
     : '<p style="color: #6b7280;">We are processing a refund for your payment.</p>';

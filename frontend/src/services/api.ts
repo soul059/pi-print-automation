@@ -340,6 +340,22 @@ export const api = {
     return res.json();
   },
 
+  async getNotificationPrefs(token: string) {
+    const res = await fetch(`${API_BASE}/api/user/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async updateNotificationPrefs(prefs: { emailOnCompleted: boolean; emailOnFailed: boolean }, token: string) {
+    const res = await fetch(`${API_BASE}/api/user/notifications`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify(prefs),
+    });
+    return res.json();
+  },
+
   async adminGetDailyLimit(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/settings/daily-limit`, {
       headers: { Authorization: `Bearer ${token}` },

@@ -220,4 +220,17 @@ const migrations = [
       `UPDATE email_policies SET name = 'EC Department', pattern = '^[0-9]{2}ec[a-z]+[0-9]{3}$', department_key = 'ec' WHERE department_key = 'ecub'`,
     ],
   },
+  {
+    name: '011_notification_preferences',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS notification_preferences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL UNIQUE,
+        email_on_completed INTEGER NOT NULL DEFAULT 1,
+        email_on_failed INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
 ];

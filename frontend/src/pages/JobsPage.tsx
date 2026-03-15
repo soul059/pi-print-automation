@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
   uploaded: 'bg-gray-100 text-gray-700',
@@ -21,6 +22,8 @@ export default function JobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [showStats, setShowStats] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<{ emailOnCompleted: boolean; emailOnFailed: boolean } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -37,6 +40,7 @@ export default function JobsPage() {
     api.getJobStats(token).then((data) => {
       if (data.stats) setStats(data);
     }).catch(() => {});
+    api.getNotificationPrefs(token).then(setNotifPrefs).catch(() => {});
   }, [token]);
 
   if (loading) {
@@ -181,6 +185,50 @@ export default function JobsPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Notification Settings */}
+      {notifPrefs && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 overflow-hidden">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="w-full flex items-center justify-between p-4 text-sm font-medium dark:text-white hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+          >
+            <span className="flex items-center gap-2"><Bell size={16} className="text-primary-500" /> Notification Settings</span>
+            {showSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showSettings && (
+            <div className="border-t dark:border-gray-700 p-4 space-y-3">
+              <label className="flex items-center justify-between">
+                <span className="text-sm dark:text-gray-300">Email when print completes</span>
+                <input
+                  type="checkbox"
+                  checked={notifPrefs.emailOnCompleted}
+                  onChange={async (e) => {
+                    const updated = { ...notifPrefs, emailOnCompleted: e.target.checked };
+                    setNotifPrefs(updated);
+                    try { await api.updateNotificationPrefs(updated, token!); toast.success('Saved'); } catch { toast.error('Failed to save'); }
+                  }}
+                  className="rounded"
+                />
+              </label>
+              <label className="flex items-center justify-between">
+                <span className="text-sm dark:text-gray-300">Email when print fails</span>
+                <input
+                  type="checkbox"
+                  checked={notifPrefs.emailOnFailed}
+                  onChange={async (e) => {
+                    const updated = { ...notifPrefs, emailOnFailed: e.target.checked };
+                    setNotifPrefs(updated);
+                    try { await api.updateNotificationPrefs(updated, token!); toast.success('Saved'); } catch { toast.error('Failed to save'); }
+                  }}
+                  className="rounded"
+                />
+              </label>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Email notifications are sent to your login email.</p>
+            </div>
+          )}
         </div>
       )}
     </div>
