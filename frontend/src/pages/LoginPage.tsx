@@ -86,7 +86,7 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">{t('app.title')}</h1>
+        <h1 className="text-2xl font-bold text-center mb-2 dark:text-white">{t('app.title')}</h1>
         <p className="text-gray-500 dark:text-gray-400 text-center mb-8">{t('login.title')}</p>
 
         {authMethod === 'main' && (
