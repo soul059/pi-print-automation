@@ -111,13 +111,13 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
             )}
 
             {/* Divider */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
+                <div className="w-full border-t border-gray-200 dark:border-gray-700" />
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-3 bg-white dark:bg-gray-800 text-gray-400">or</span>
@@ -174,7 +174,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
             )}
 
             <button
@@ -198,12 +198,12 @@ export default function LoginPage() {
 
         {authMethod === 'otp-verify' && (
           <form onSubmit={handleOtpSubmit} className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-              <p className="text-blue-700">
+            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm">
+              <p className="text-blue-700 dark:text-blue-300">
                 OTP sent to <strong>{email}</strong>
               </p>
               {department && (
-                <p className="text-blue-600 mt-1">Department: {department}</p>
+                <p className="text-blue-600 dark:text-blue-400 mt-1">Department: {department}</p>
               )}
             </div>
 
@@ -224,7 +224,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg">{error}</p>
             )}
 
             <button

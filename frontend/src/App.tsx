@@ -35,7 +35,10 @@ export default function App() {
       <AuthProvider>
         <AdminProvider>
           <Layout>
-          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+          <Toaster position="top-right" toastOptions={{
+            duration: 3000,
+            className: 'dark:bg-gray-800 dark:text-white',
+          }} />
           <AnnouncementBanner />
           <Routes>
             <Route path="/login" element={<LoginPage />} />

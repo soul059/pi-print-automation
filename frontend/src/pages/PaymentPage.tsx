@@ -171,7 +171,7 @@ export default function PaymentPage() {
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Payment</h1>
+      <h1 className="text-2xl font-bold dark:text-white">Payment</h1>
 
       <PrinterStatusBadge enabled />
 
@@ -187,33 +187,33 @@ export default function PaymentPage() {
             <span className="text-gray-500 dark:text-gray-400">File</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Pages</span>
+            <span className="text-gray-500 dark:text-gray-400">Pages</span>
             <span>{job.printPages} of {job.totalPages}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Paper</span>
+            <span className="text-gray-500 dark:text-gray-400">Paper</span>
             <span>{job.paperSize}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Copies</span>
+            <span className="text-gray-500 dark:text-gray-400">Copies</span>
             <span>{job.copies}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Color</span>
+            <span className="text-gray-500 dark:text-gray-400">Color</span>
             <span>{job.color === 'color' ? 'Color' : 'Black & White'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Sides</span>
+            <span className="text-gray-500 dark:text-gray-400">Sides</span>
             <span>{job.duplex ? 'Double-sided' : 'Single-sided'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Mode</span>
+            <span className="text-gray-500 dark:text-gray-400">Mode</span>
             <span className="flex items-center gap-1">
               {job.printMode === 'later' ? '📦 Collect Later' : '⚡ Print Now'}
             </span>
           </div>
 
-          <hr className="my-3" />
+          <hr className="my-3 dark:border-gray-700" />
 
           <div className="flex justify-between text-lg font-bold">
             <span>Total</span>

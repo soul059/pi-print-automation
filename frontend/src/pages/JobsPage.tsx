@@ -6,13 +6,13 @@ import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp, B
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
-  uploaded: 'bg-gray-100 text-gray-700',
-  payment_pending: 'bg-yellow-100 text-yellow-700',
-  paid: 'bg-blue-100 text-blue-700',
-  printing: 'bg-blue-100 text-blue-700',
-  completed: 'bg-green-100 text-green-700',
-  failed: 'bg-red-100 text-red-700',
-  failed_permanent: 'bg-red-100 text-red-700',
+  uploaded: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300',
+  payment_pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+  paid: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  printing: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  completed: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+  failed: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+  failed_permanent: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
 };
 
 export default function JobsPage() {
@@ -57,8 +57,8 @@ export default function JobsPage() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600 font-medium mb-2">Failed to load jobs</p>
-        <p className="text-gray-500 text-sm">{error}</p>
+        <p className="text-red-600 dark:text-red-400 font-medium mb-2">Failed to load jobs</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">{error}</p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 text-primary-600 text-sm hover:underline"
@@ -72,12 +72,12 @@ export default function JobsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Print Jobs</h1>
+        <h1 className="text-2xl font-bold dark:text-white">My Print Jobs</h1>
         <div className="flex items-center gap-2">
           {jobs.length > 0 && (
             <button
               onClick={() => api.downloadCSV('/api/jobs/export', token!, `print-history-${new Date().toISOString().split('T')[0]}.csv`)}
-              className="flex items-center gap-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+              className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
             >
               <Download size={16} /> Export CSV
             </button>
@@ -95,7 +95,7 @@ export default function JobsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 overflow-hidden">
           <button
             onClick={() => setShowStats(!showStats)}
-            className="w-full flex items-center justify-between p-4 text-sm font-medium dark:text-white hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+            className="w-full flex items-center justify-between p-4 text-sm font-medium dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition"
           >
             <span className="flex items-center gap-2"><BarChart3 size={16} className="text-primary-500" /> My Print Stats</span>
             {showStats ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -227,7 +227,7 @@ export default function JobsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 overflow-hidden">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="w-full flex items-center justify-between p-4 text-sm font-medium dark:text-white hover:bg-gray-50 dark:hover:bg-gray-750 transition"
+            className="w-full flex items-center justify-between p-4 text-sm font-medium dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition"
           >
             <span className="flex items-center gap-2"><Bell size={16} className="text-primary-500" /> Notification Settings</span>
             {showSettings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

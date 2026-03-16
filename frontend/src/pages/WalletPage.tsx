@@ -142,7 +142,7 @@ export default function WalletPage() {
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
+      <h1 className="text-2xl font-bold dark:text-white flex items-center gap-2">
         <Wallet size={24} />
         My Wallet
       </h1>

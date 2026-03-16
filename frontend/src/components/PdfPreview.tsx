@@ -71,26 +71,26 @@ export default function PdfPreview({ jobId, token, totalPages }: PdfPreviewProps
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border p-6 flex items-center justify-center min-h-[200px]">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 flex items-center justify-center min-h-[200px]">
         <Loader2 size={24} className="animate-spin text-primary-500" />
-        <span className="ml-2 text-sm text-gray-500">Loading preview…</span>
+        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading preview…</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl border p-6 flex items-center justify-center min-h-[100px]">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-6 flex items-center justify-center min-h-[100px]">
         <AlertCircle size={18} className="text-red-500 mr-2" />
-        <span className="text-sm text-red-600">{error}</span>
+        <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border p-4 space-y-3">
-      <h2 className="text-lg font-semibold">Document Preview</h2>
-      <div className="border rounded-lg overflow-hidden bg-gray-50">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 p-4 space-y-3">
+      <h2 className="text-lg font-semibold dark:text-white">Document Preview</h2>
+      <div className="border dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900">
         <canvas ref={canvasRef} className="w-full" />
       </div>
       {totalPages > 1 && (
@@ -98,17 +98,19 @@ export default function PdfPreview({ jobId, token, totalPages }: PdfPreviewProps
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage <= 1}
-            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Previous page"
           >
             <ChevronLeft size={20} />
           </button>
-          <span className="text-gray-600">
+          <span className="text-gray-600 dark:text-gray-400">
             Page {currentPage} of {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage >= totalPages}
-            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Next page"
           >
             <ChevronRight size={20} />
           </button>

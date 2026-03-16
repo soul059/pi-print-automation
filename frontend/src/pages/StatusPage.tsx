@@ -138,30 +138,30 @@ export default function StatusPage() {
 
       <div className="bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 p-8 text-center space-y-4">
         <div className={statusInfo.color}>{statusInfo.icon}</div>
-        <h1 className="text-2xl font-bold">{statusInfo.label}</h1>
+        <h1 className="text-2xl font-bold dark:text-white">{statusInfo.label}</h1>
         <p className="text-gray-500 dark:text-gray-400">{statusInfo.description}</p>
 
         {isQueued && position !== null && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <p className="text-sm font-medium text-blue-800">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
               🕐 You are #{position} in queue · {estimatedWait}
             </p>
-            <div className="mt-2 w-full bg-blue-200 rounded-full h-1.5">
+            <div className="mt-2 w-full bg-blue-200 dark:bg-blue-900 rounded-full h-1.5">
               <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
             </div>
           </div>
         )}
 
         {job.scheduledAt && job.status === 'paid' && new Date(job.scheduledAt) > new Date() && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mt-4">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 mt-4">
             <div className="flex items-center justify-center gap-2 mb-1">
-              <CalendarClock size={18} className="text-indigo-600" />
-              <p className="text-sm font-medium text-indigo-800">Scheduled Print</p>
+              <CalendarClock size={18} className="text-indigo-600 dark:text-indigo-400" />
+              <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300">Scheduled Print</p>
             </div>
-            <p className="text-sm text-indigo-700">
+            <p className="text-sm text-indigo-700 dark:text-indigo-300">
               Printing at: {new Date(job.scheduledAt).toLocaleString('en-IN')}
             </p>
-            <p className="text-xs text-indigo-500 mt-1">
+            <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1">
               {(() => {
                 const diff = new Date(job.scheduledAt).getTime() - Date.now();
                 if (diff <= 0) return 'Starting soon…';
@@ -175,27 +175,27 @@ export default function StatusPage() {
         )}
 
         {job.refundStatus === 'refunded' && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
-            <p className="text-sm font-medium text-green-800">💰 Payment Refunded</p>
-            <p className="text-xs text-green-600 mt-1">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-green-800 dark:text-green-300">💰 Payment Refunded</p>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
               Payment refunded. Amount will be credited to your account.
             </p>
           </div>
         )}
 
         {job.refundStatus === 'failed' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-            <p className="text-sm font-medium text-yellow-800">⚠️ Refund Failed</p>
-            <p className="text-xs text-yellow-600 mt-1">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">⚠️ Refund Failed</p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
               Automatic refund could not be processed. Please contact support.
             </p>
           </div>
         )}
 
         {job.printMode === 'later' && job.status === 'completed' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-            <p className="text-sm font-medium text-yellow-800">📦 Collect Later Mode</p>
-            <p className="text-xs text-yellow-600 mt-1">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mt-4">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">📦 Collect Later Mode</p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
               Your printout is ready for collection. Show your job ID to the staff.
             </p>
           </div>
@@ -243,7 +243,7 @@ export default function StatusPage() {
             </div>
           )}
           {job.errorMessage && (
-            <div className="mt-2 p-2 bg-red-50 rounded text-red-600 text-xs">
+            <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded text-red-600 dark:text-red-400 text-xs">
               {job.errorMessage}
             </div>
           )}

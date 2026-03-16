@@ -49,6 +49,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">{email}</span>
                 <button
                   onClick={handleLogout}
+                  aria-label="Log out"
                   className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-red-600"
                 >
                   <LogOut size={16} />

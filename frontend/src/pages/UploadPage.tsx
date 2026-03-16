@@ -169,7 +169,7 @@ export default function UploadPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('upload.title')}</h1>
+        <h1 className="text-2xl font-bold dark:text-white">{t('upload.title')}</h1>
       </div>
 
       <PrinterStatusBadge enabled={files.length > 0} />
@@ -213,8 +213,8 @@ export default function UploadPage() {
       {limitInfo && (
         <div className={`flex items-start gap-2 text-sm px-4 py-3 rounded-lg ${
           limitInfo.allowed
-            ? 'bg-blue-50 text-blue-700'
-            : 'bg-amber-50 text-amber-700'
+            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+            : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
         }`}>
           {!limitInfo.allowed && <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
           <div>
@@ -254,7 +254,7 @@ export default function UploadPage() {
                 <div key={i} className="flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-lg px-3 py-2 border dark:border-gray-700">
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText size={18} className="text-primary-600 shrink-0" />
-                    <span className="text-sm font-medium text-primary-700 truncate">{f.name}</span>
+                    <span className="text-sm font-medium text-primary-700 dark:text-primary-300 truncate">{f.name}</span>
                     <span className="text-xs text-gray-400 shrink-0">
                       {(f.size / 1024 / 1024).toFixed(2)} MB
                     </span>
@@ -290,7 +290,7 @@ export default function UploadPage() {
           ) : (
             <div>
               <Upload size={32} className="mx-auto mb-2 text-gray-400" />
-              <p className="font-medium text-gray-600">{t('upload.dropzone')}</p>
+              <p className="font-medium text-gray-600 dark:text-gray-300">{t('upload.dropzone')}</p>
               <p className="text-sm text-gray-400 mt-1">Max {MAX_FILES} files, 50 MB total</p>
             </div>
           )}
@@ -412,6 +412,8 @@ export default function UploadPage() {
               </label>
               <button
                 type="button"
+                role="switch"
+                aria-checked={duplex}
                 onClick={() => canDuplex && setDuplex(!duplex)}
                 disabled={!canDuplex}
                 className={`relative w-11 h-6 rounded-full transition ${
@@ -467,6 +469,8 @@ export default function UploadPage() {
                 </label>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={scheduleForLater}
                   onClick={() => { setScheduleForLater(!scheduleForLater); if (scheduleForLater) setScheduledAt(''); }}
                   className={`relative w-11 h-6 rounded-full transition ${
                     scheduleForLater ? 'bg-primary-600' : 'bg-gray-300'
