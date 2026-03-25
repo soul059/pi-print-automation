@@ -1,7 +1,11 @@
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 function getHeaders(token?: string): HeadersInit {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  const headers: HeadersInit = { 
+    'Content-Type': 'application/json',
+    // Skip ngrok browser warning page (required for ngrok free tier)
+    'ngrok-skip-browser-warning': 'true',
+  };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 }
@@ -50,41 +54,58 @@ export const api = {
     }
     formData.append('config', JSON.stringify(config));
 
+    console.log('[API] uploadFile called, files:', fileArray.length);
     const res = await fetch(`${API_BASE}/api/upload`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
       body: formData,
     });
-    return res.json();
+    const data = await res.json();
+    console.log('[API] uploadFile response:', data);
+    return data;
   },
 
   // Printer
   async getPrinterStatus() {
-    const res = await fetch(`${API_BASE}/api/printer/status`);
+    console.log('[API] getPrinterStatus, API_BASE:', API_BASE);
+    const res = await fetch(`${API_BASE}/api/printer/status`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
   async getPrinters() {
-    const res = await fetch(`${API_BASE}/api/printers/list`);
+    const res = await fetch(`${API_BASE}/api/printers/list`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
   // Pricing config
   async getPricingConfig() {
-    const res = await fetch(`${API_BASE}/api/printer/pricing`);
+    const res = await fetch(`${API_BASE}/api/printer/pricing`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
   // Supply levels
   async getSupplyLevels(printerName?: string) {
     const query = printerName ? `?printer=${encodeURIComponent(printerName)}` : '';
-    const res = await fetch(`${API_BASE}/api/printer/supplies${query}`);
+    const res = await fetch(`${API_BASE}/api/printer/supplies${query}`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
   // Leaderboard
   async getLeaderboard() {
-    const res = await fetch(`${API_BASE}/api/printer/leaderboard`);
+    const res = await fetch(`${API_BASE}/api/printer/leaderboard`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
@@ -112,15 +133,18 @@ export const api = {
 
   // Jobs
   async getJob(jobId: string, token: string) {
+    console.log('[API] getJob called, jobId:', jobId);
     const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
-    return res.json();
+    const data = await res.json();
+    console.log('[API] getJob response:', data);
+    return data;
   },
 
   async getJobs(token: string) {
     const res = await fetch(`${API_BASE}/api/jobs`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -134,14 +158,16 @@ export const api = {
   },
 
   async getCollectInfo(jobId: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/collect-info`);
+    const res = await fetch(`${API_BASE}/api/jobs/${jobId}/collect-info`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
   // Receipt
   async getReceipt(jobId: string, token: string) {
     const res = await fetch(`${API_BASE}/api/jobs/${jobId}/receipt`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -149,7 +175,7 @@ export const api = {
   // User print stats
   async getJobStats(token: string) {
     const res = await fetch(`${API_BASE}/api/jobs/stats`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -176,7 +202,7 @@ export const api = {
 
   async adminGetHealth(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/health`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -187,7 +213,7 @@ export const api = {
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.offset) query.set('offset', String(params.offset));
     const res = await fetch(`${API_BASE}/api/admin/jobs?${query}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -235,7 +261,10 @@ export const api = {
     if (options.printerName) formData.append('printerName', options.printerName);
     const res = await fetch(`${API_BASE}/api/admin/print`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
       body: formData,
     });
     return res.json();
@@ -243,7 +272,7 @@ export const api = {
 
   async adminGetAnalytics(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/analytics`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     if (!res.ok) throw new Error('Failed to fetch analytics');
     return res.json();
@@ -251,7 +280,7 @@ export const api = {
 
   async adminGetPolicies(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/policies`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -277,21 +306,23 @@ export const api = {
   async adminDeletePolicy(id: number, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/policies/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
 
   // Announcements (public)
   async getActiveAnnouncement() {
-    const res = await fetch(`${API_BASE}/api/announcements`);
+    const res = await fetch(`${API_BASE}/api/announcements`, {
+      headers: getHeaders(),
+    });
     return res.json();
   },
 
   // Announcements (admin)
   async adminGetAnnouncements(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/announcements`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -317,17 +348,21 @@ export const api = {
   async adminDeleteAnnouncement(id: number, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/announcements/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
 
   // Wallet
   async getWallet(token: string) {
+    console.log('[API] getWallet called, API_BASE:', API_BASE);
     const res = await fetch(`${API_BASE}/api/wallet`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
-    return res.json();
+    console.log('[API] getWallet response status:', res.status);
+    const data = await res.json();
+    console.log('[API] getWallet data:', data);
+    return data;
   },
 
   async walletTopup(amount: number, token: string) {
@@ -363,14 +398,14 @@ export const api = {
   // Print Limits
   async getUserLimit(token: string) {
     const res = await fetch(`${API_BASE}/api/user/limit`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
 
   async getNotificationPrefs(token: string) {
     const res = await fetch(`${API_BASE}/api/user/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -386,7 +421,7 @@ export const api = {
 
   async adminGetDailyLimit(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/settings/daily-limit`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -402,7 +437,7 @@ export const api = {
 
   async adminGetOperatingHours(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/settings/operating-hours`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -427,7 +462,7 @@ export const api = {
 
   async adminGetExemptions(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/exemptions`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -435,7 +470,7 @@ export const api = {
   async adminRevokeExemption(id: number, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/exemptions/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -443,7 +478,7 @@ export const api = {
   // CSV Export
   async downloadCSV(url: string, token: string, filename: string) {
     const res = await fetch(`${API_BASE}${url}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     const blob = await res.blob();
     const a = document.createElement('a');
@@ -456,7 +491,7 @@ export const api = {
   // Maintenance Log
   async adminGetMaintenanceLog(token: string, limit = 50, offset = 0) {
     const res = await fetch(`${API_BASE}/api/admin/maintenance?limit=${limit}&offset=${offset}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -473,7 +508,7 @@ export const api = {
   async adminDeleteMaintenanceEntry(id: number, token: string) {
     const res = await fetch(`${API_BASE}/api/admin/maintenance/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },
@@ -481,7 +516,7 @@ export const api = {
   // Telegram
   async adminGetTelegramStatus(token: string) {
     const res = await fetch(`${API_BASE}/api/admin/telegram/status`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: getHeaders(token),
     });
     return res.json();
   },

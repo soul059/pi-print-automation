@@ -21,7 +21,13 @@ export function useQueuePosition(jobId: string | undefined, enabled: boolean) {
       return;
     }
 
-    const socket: Socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket: Socket = io(SOCKET_URL, { 
+      transports: ['websocket', 'polling'],
+      // Skip ngrok browser warning (required for ngrok free tier)
+      extraHeaders: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {

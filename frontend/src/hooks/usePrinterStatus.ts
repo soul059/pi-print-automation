@@ -29,10 +29,13 @@ export function usePrinterStatus(enabled = false) {
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('[usePrinterStatus] Fetching status via REST...');
       const data = await api.getPrinterStatus();
+      console.log('[usePrinterStatus] REST response:', data);
       setStatus(data);
       setError(null);
     } catch (err: any) {
+      console.error('[usePrinterStatus] REST error:', err);
       setError(err.message || 'Failed to get printer status');
     } finally {
       setLoading(false);
@@ -60,19 +63,28 @@ export function usePrinterStatus(enabled = false) {
     fetchStatus();
 
     // Connect socket and subscribe to printer status room
-    const socket: Socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket: Socket = io(SOCKET_URL, { 
+      transports: ['websocket', 'polling'],
+      // Skip ngrok browser warning (required for ngrok free tier)
+      extraHeaders: {
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('[usePrinterStatus] Socket connected');
       socket.emit('subscribe:printer-status');
     });
 
     socket.on('printer:status', (data: PrinterStatus) => {
+      console.log('[usePrinterStatus] Socket update:', data);
       setStatus(data);
       setLoading(false);
     });
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (err) => {
+      console.error('[usePrinterStatus] Socket error:', err);
       // Fallback to polling if WebSocket fails
       if (!pollingRef.current) {
         pollingRef.current = setInterval(fetchStatus, 10000);

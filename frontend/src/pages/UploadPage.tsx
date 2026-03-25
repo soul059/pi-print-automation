@@ -116,7 +116,14 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length === 0 || !token) return;
+    console.log('[UploadPage] handleSubmit called');
+    console.log('[UploadPage] files:', files.length, 'token:', token ? 'present' : 'missing');
+    console.log('[UploadPage] status:', status);
+    
+    if (files.length === 0 || !token) {
+      console.log('[UploadPage] Aborting: no files or no token');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -133,7 +140,9 @@ export default function UploadPage() {
         scheduledAt: scheduleForLater && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       };
 
+      console.log('[UploadPage] Uploading with config:', config);
       const result = await api.uploadFile(files, config, token);
+      console.log('[UploadPage] Upload result:', result);
 
       if (result.error) {
         if (result.error === 'daily_limit_exceeded') {
@@ -147,7 +156,8 @@ export default function UploadPage() {
 
       savePrefs({ paperSize, copies, duplex, color, printMode });
       navigate(`/payment/${result.jobId}`);
-    } catch {
+    } catch (err) {
+      console.error('[UploadPage] Upload error:', err);
       setError('Upload failed. Please try again.');
     } finally {
       setLoading(false);
@@ -554,18 +564,30 @@ export default function UploadPage() {
 
         {/* Submit */}
         {files.length > 0 && (
-          <button
-            type="submit"
-            disabled={loading || !status?.online}
-            className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white py-3 rounded-xl font-medium text-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {loading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <CreditCard size={20} />
+          <>
+            {status === null && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ Unable to check printer status. You can still proceed.
+              </p>
             )}
-            {loading ? 'Uploading...' : t('upload.submit')}
-          </button>
+            {status && !status.online && (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                ⚠️ Printer appears offline. Upload may fail.
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-primary-600 text-white py-3 rounded-xl font-medium text-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {loading ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <CreditCard size={20} />
+              )}
+              {loading ? 'Uploading...' : t('upload.submit')}
+            </button>
+          </>
         )}
       </form>
     </div>

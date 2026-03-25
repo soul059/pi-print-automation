@@ -40,11 +40,18 @@ export default function PaymentPage() {
   const [error, setError] = useState('');
 
   const fetchJob = useCallback(async () => {
+    console.log('[PaymentPage] fetchJob called, jobId:', jobId, 'token:', token ? 'present' : 'missing');
     if (!jobId || !token) return;
     try {
       const data = await api.getJob(jobId, token);
-      setJob(data);
-    } catch {
+      console.log('[PaymentPage] getJob response:', data);
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setJob(data);
+      }
+    } catch (err) {
+      console.error('[PaymentPage] getJob error:', err);
       setError('Failed to load job details');
     } finally {
       setLoading(false);
@@ -96,6 +103,13 @@ export default function PaymentPage() {
 
       if (orderData.error) {
         setError(orderData.message || orderData.error);
+        setPaying(false);
+        return;
+      }
+
+      // Check if Razorpay script is loaded
+      if (!window.Razorpay) {
+        setError('Payment gateway not loaded. Please refresh the page.');
         setPaying(false);
         return;
       }
