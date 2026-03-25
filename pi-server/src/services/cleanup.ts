@@ -6,19 +6,24 @@ import { logger } from '../config/logger';
 import { cleanupExpiredRefreshTokens } from '../middleware/auth';
 
 let cleanupInterval: NodeJS.Timeout | null = null;
+let initialCleanupTimeout: NodeJS.Timeout | null = null;
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export function startCleanup(): void {
   cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
   // Run first cleanup after 5 minutes (let server stabilize)
-  setTimeout(runCleanup, 5 * 60 * 1000);
+  initialCleanupTimeout = setTimeout(runCleanup, 5 * 60 * 1000);
 }
 
 export function stopCleanup(): void {
   if (cleanupInterval) {
     clearInterval(cleanupInterval);
     cleanupInterval = null;
+  }
+  if (initialCleanupTimeout) {
+    clearTimeout(initialCleanupTimeout);
+    initialCleanupTimeout = null;
   }
 }
 
@@ -45,7 +50,7 @@ function runCleanup(): void {
           cleaned++;
         }
         // Remove the _print variant (identity page appended)
-        const printPath = job.file_path.replace('.pdf', '_print.pdf');
+        const printPath = job.file_path.replace(/\.pdf$/i, '_print.pdf');
         if (fs.existsSync(printPath)) {
           fs.unlinkSync(printPath);
         }

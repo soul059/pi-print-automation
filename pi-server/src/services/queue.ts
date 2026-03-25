@@ -157,8 +157,11 @@ async function processJob(jobId: string): Promise<void> {
     const newRetryCount = (job.retry_count || 0) + 1;
 
     if (newRetryCount >= MAX_RETRIES) {
-      transitionJob(jobId, 'failed', err.message);
-      transitionJob(jobId, 'failed_permanent');
+      // Transition printing → failed → failed_permanent
+      const failedOk = transitionJob(jobId, 'failed', err.message);
+      if (failedOk) {
+        transitionJob(jobId, 'failed_permanent');
+      }
       db.prepare(
         "UPDATE jobs SET retry_count = ?, error_message = ?, updated_at = datetime('now') WHERE id = ?"
       ).run(newRetryCount, err.message, jobId);

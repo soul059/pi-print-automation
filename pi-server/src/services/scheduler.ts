@@ -1,6 +1,6 @@
-import { getDb } from '../db/connection.js';
-import { enqueueJob, getQueuedJobIds } from './queue.js';
-import { logger } from '../config/logger.js';
+import { getDb } from '../db/connection';
+import { enqueueJob, getQueuedJobIds } from './queue';
+import { logger } from '../config/logger';
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 

@@ -85,10 +85,13 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
   const safeName = sanitizePrinterName(name);
 
   try {
-    const output = await execFileAsync('lpstat', ['-p', safeName]);
+    // Use -l for detailed status including connection issues
+    const output = await execFileAsync('lpstat', ['-l', '-p', safeName]);
     const isIdle = output.includes('idle');
     const isPrinting = output.includes('printing');
     const isStopped = output.includes('stopped') || output.includes('disabled');
+    // Check for connection issues - "not connected", "Unplugged or turned off", etc.
+    const isDisconnected = /not connected|unplugged|turned off|offline|unreachable/i.test(output);
 
     let accepting = false;
     try {
@@ -98,10 +101,26 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
       accepting = !isStopped;
     }
 
+    // Printer is only truly online if enabled AND connected
+    const online = !isStopped && !isDisconnected;
+    
+    let status: string;
+    if (isDisconnected) {
+      status = 'disconnected';
+    } else if (isStopped) {
+      status = 'stopped';
+    } else if (isPrinting) {
+      status = 'printing';
+    } else if (isIdle) {
+      status = 'idle';
+    } else {
+      status = 'unknown';
+    }
+
     return {
-      online: !isStopped,
-      status: isStopped ? 'stopped' : isPrinting ? 'printing' : isIdle ? 'idle' : 'unknown',
-      accepting,
+      online,
+      status,
+      accepting: accepting && online, // Don't accept if disconnected
       printerName: safeName,
     };
   } catch {
