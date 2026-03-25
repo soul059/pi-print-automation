@@ -47,6 +47,7 @@ export default function UploadPage() {
   const [duplex, setDuplex] = useState(savedPrefs.current.duplex ?? false);
   const [color, setColor] = useState<'grayscale' | 'color'>(savedPrefs.current.color ?? 'grayscale');
   const [printMode, setPrintMode] = useState<'now' | 'later'>(savedPrefs.current.printMode ?? 'now');
+  const [printReceipt, setPrintReceipt] = useState(false); // Print full receipt page (costs extra)
   const [scheduleForLater, setScheduleForLater] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [selectedPrinter, setSelectedPrinter] = useState('auto');
@@ -136,6 +137,7 @@ export default function UploadPage() {
         duplex,
         color,
         printMode,
+        printReceipt,
         printer: selectedPrinter !== 'auto' ? selectedPrinter : undefined,
         scheduledAt: scheduleForLater && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       };
@@ -469,6 +471,46 @@ export default function UploadPage() {
                   <p className="text-xs text-gray-500 mt-1">Pick up when convenient</p>
                 </button>
               </div>
+            </div>
+
+            {/* Print Receipt Option */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Print receipt page
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Adds a full-page receipt with your job details and QR code
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={printReceipt}
+                  onClick={() => setPrintReceipt(!printReceipt)}
+                  className={`relative w-11 h-6 rounded-full transition ${
+                    printReceipt ? 'bg-primary-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition ${
+                      printReceipt ? 'left-[22px]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              {printReceipt && pricingConfig && (
+                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                  <IndianRupee size={12} />
+                  +₹{(pricingConfig.bwPerPage / 100).toFixed(2)} (1 extra page)
+                </p>
+              )}
+              {!printReceipt && (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  ✓ Email receipt will be sent for free
+                </p>
+              )}
             </div>
 
             {/* Schedule for Later */}

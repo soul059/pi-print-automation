@@ -200,6 +200,7 @@ uploadRouter.post('/', requireAuth, uploadLimiter, upload.array('files', 10), as
     const color = config.color === 'color' ? 'color' : 'grayscale';
     const copies = Math.min(Math.max(parseInt(config.copies) || 1, 1), 50);
     const duplex = config.duplex === true;
+    const printReceipt = config.printReceipt === true; // user explicitly wants printed receipt (costs 1 extra page)
 
     // Check daily page limit (accounting for pages in this upload * copies)
     const effectivePages = totalPages * copies;
@@ -216,8 +217,8 @@ uploadRouter.post('/', requireAuth, uploadLimiter, upload.array('files', 10), as
       return;
     }
 
-    // Calculate price
-    const pricing = calculatePrice(totalPages, config.pageRange, color, copies, duplex);
+    // Calculate price (printReceipt adds 1 extra page at B/W rate)
+    const pricing = calculatePrice(totalPages, config.pageRange, color, copies, duplex, printReceipt);
 
     // Create job
     const job = createJob({
@@ -232,6 +233,7 @@ uploadRouter.post('/', requireAuth, uploadLimiter, upload.array('files', 10), as
       duplex,
       color,
       printMode: config.printMode === 'later' ? 'later' : 'now',
+      printReceipt,
       price: pricing.total,
       printerName: config.printer || undefined,
       scheduledAt,

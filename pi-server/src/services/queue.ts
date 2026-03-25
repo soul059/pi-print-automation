@@ -19,6 +19,7 @@ interface QueuedJob {
   user_name: string;
   user_email: string;
   print_mode: string;
+  print_receipt: number; // 0 = no printed receipt, 1 = full receipt page
   print_pages: string;
   paper_size: string;
   copies: number;
@@ -26,6 +27,8 @@ interface QueuedJob {
   color: string;
   retry_count: number;
   printer_name: string | null;
+  total_pages: number;
+  price: number;
 }
 
 let processing = false;
@@ -75,13 +78,31 @@ async function processJob(jobId: string): Promise<void> {
   }
 
   try {
-    // Append identity page
-    const printFilePath = await pdf.appendIdentityPage(job.file_path, {
+    // Determine identity page strategy:
+    // 1. If printReceipt=true → Full identity page (user paid for it)
+    // 2. If collect-later OR multi-copy → Footer on last page (helps staff identify)
+    // 3. Otherwise (single-copy print-now) → No printed identity (email receipt only)
+    let printFilePath = job.file_path;
+    
+    const identityData: pdf.IdentityPageData = {
       userName: job.user_name,
       userEmail: job.user_email,
       jobId: job.id,
       printMode: job.print_mode as 'now' | 'later',
-    });
+    };
+
+    if (job.print_receipt === 1) {
+      // User explicitly requested full receipt page (charged)
+      printFilePath = await pdf.appendIdentityPage(job.file_path, identityData);
+      logger.info({ jobId: job.id }, 'Full identity page appended (user requested)');
+    } else if (job.print_mode === 'later' || job.copies > 1) {
+      // Collect-later or multi-copy: add footer to last page for identification
+      printFilePath = await pdf.appendIdentityFooter(job.file_path, identityData);
+      logger.info({ jobId: job.id, printMode: job.print_mode, copies: job.copies }, 'Identity footer appended');
+    } else {
+      // Single-copy print-now: no printed identity (email receipt only)
+      logger.info({ jobId: job.id }, 'No printed identity (email receipt only)');
+    }
 
     // Determine target printer
     let printerName: string | null = null;
@@ -128,6 +149,9 @@ async function processJob(jobId: string): Promise<void> {
       jobId,
       fileName: job.file_name,
       printMode: job.print_mode,
+      pages: job.total_pages,
+      copies: job.copies,
+      price: job.price,
     }).catch(err2 => logger.error({ jobId, err: err2.message }, 'Completion notification failed'));
   } catch (err: any) {
     const newRetryCount = (job.retry_count || 0) + 1;

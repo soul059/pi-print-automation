@@ -286,4 +286,11 @@ const migrations = [
       `ALTER TABLE jobs ADD COLUMN collected_at TEXT`,
     ],
   },
+  {
+    name: '017_print_receipt_option',
+    statements: [
+      // print_receipt: 0 = no printed receipt (email only), 1 = print full receipt page
+      `ALTER TABLE jobs ADD COLUMN print_receipt INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];

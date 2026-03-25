@@ -70,6 +70,10 @@ function maskEmailAddress(email: string): string {
   return `${local.slice(0, 3)}***@${domain}`;
 }
 
+/**
+ * Append a FULL identity page (adds 1 page to document)
+ * Used when user explicitly requests printed receipt
+ */
 export async function appendIdentityPage(
   filePath: string,
   data: IdentityPageData
@@ -135,6 +139,90 @@ export async function appendIdentityPage(
   const modifiedBytes = await pdf.save();
   fs.writeFileSync(outputPath, modifiedBytes);
 
-  logger.info({ jobId: data.jobId, outputPath }, 'Identity page appended');
+  logger.info({ jobId: data.jobId, outputPath }, 'Full identity page appended');
+  return outputPath;
+}
+
+/**
+ * Append a COMPACT identity footer to the last page (no extra page added)
+ * Used for collect-later mode when user doesn't want full receipt page
+ */
+export async function appendIdentityFooter(
+  filePath: string,
+  data: IdentityPageData
+): Promise<string> {
+  const bytes = fs.readFileSync(filePath);
+  const pdf = await PDFDocument.load(bytes);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  // Generate smaller QR code
+  const qrDataUrl = await QRCode.toDataURL(data.jobId, {
+    width: 60,
+    margin: 0,
+    errorCorrectionLevel: 'L',
+  });
+  const qrImageBytes = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+  const qrImage = await pdf.embedPng(qrImageBytes);
+
+  // Get last page
+  const pages = pdf.getPages();
+  const lastPage = pages[pages.length - 1];
+  const { width } = lastPage.getSize();
+
+  const displayEmail = data.maskEmail ? maskEmailAddress(data.userEmail) : data.userEmail;
+  const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+  // Draw footer box at bottom of last page
+  const footerHeight = 70;
+  const padding = 10;
+
+  // Background box
+  lastPage.drawRectangle({
+    x: padding,
+    y: padding,
+    width: width - (padding * 2),
+    height: footerHeight,
+    color: rgb(0.95, 0.95, 0.95),
+    borderColor: rgb(0.8, 0.8, 0.8),
+    borderWidth: 1,
+  });
+
+  // QR code on left
+  lastPage.drawImage(qrImage, {
+    x: padding + 8,
+    y: padding + 5,
+    width: 60,
+    height: 60,
+  });
+
+  // Text info
+  const textX = padding + 80;
+  let textY = padding + footerHeight - 18;
+
+  lastPage.drawText(`Job: ${data.jobId}`, {
+    x: textX, y: textY, size: 9, font: boldFont, color: rgb(0.2, 0.2, 0.2),
+  });
+  textY -= 14;
+
+  lastPage.drawText(`${data.userName} | ${displayEmail}`, {
+    x: textX, y: textY, size: 8, font, color: rgb(0.3, 0.3, 0.3),
+  });
+  textY -= 12;
+
+  lastPage.drawText(`${data.printMode === 'later' ? 'Collect Later' : 'Print Now'} | ${timestamp}`, {
+    x: textX, y: textY, size: 7, font, color: rgb(0.5, 0.5, 0.5),
+  });
+
+  // Small scan hint
+  lastPage.drawText('Scan QR to verify', {
+    x: padding + 12, y: padding + footerHeight - 12, size: 6, font, color: rgb(0.5, 0.5, 0.5),
+  });
+
+  const outputPath = filePath.replace(/\.pdf$/i, '_print.pdf');
+  const modifiedBytes = await pdf.save();
+  fs.writeFileSync(outputPath, modifiedBytes);
+
+  logger.info({ jobId: data.jobId, outputPath }, 'Identity footer appended to last page');
   return outputPath;
 }

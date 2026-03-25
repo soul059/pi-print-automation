@@ -26,6 +26,7 @@ export interface Job {
   duplex: number;
   color: ColorMode;
   print_mode: PrintMode;
+  print_receipt: number; // 0 = email only, 1 = print full receipt page (costs 1 extra page)
   status: JobStatus;
   cups_job_id: string | null;
   printer_name: string | null;
@@ -61,6 +62,7 @@ export function createJob(data: {
   duplex?: boolean;
   color?: ColorMode;
   printMode?: PrintMode;
+  printReceipt?: boolean; // true = print full receipt page (charged)
   price: number;
   printerName?: string;
   scheduledAt?: string;
@@ -69,8 +71,8 @@ export function createJob(data: {
   const id = `job_${nanoid(12)}`;
 
   db.prepare(
-    `INSERT INTO jobs (id, user_email, user_name, file_name, file_path, total_pages, print_pages, paper_size, copies, duplex, color, print_mode, price, printer_name, scheduled_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO jobs (id, user_email, user_name, file_name, file_path, total_pages, print_pages, paper_size, copies, duplex, color, print_mode, print_receipt, price, printer_name, scheduled_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     data.userEmail,
@@ -84,6 +86,7 @@ export function createJob(data: {
     data.duplex ? 1 : 0,
     data.color || 'grayscale',
     data.printMode || 'now',
+    data.printReceipt ? 1 : 0,
     data.price,
     data.printerName || null,
     data.scheduledAt || null

@@ -19,7 +19,14 @@ function getPrefs(email: string): NotificationPrefs {
 
 export async function notifyJobCompleted(
   email: string,
-  jobData: { jobId: string; fileName: string; printMode: string }
+  jobData: { 
+    jobId: string; 
+    fileName: string; 
+    printMode: string;
+    pages?: number;
+    copies?: number;
+    price?: number;
+  }
 ): Promise<void> {
   const prefs = getPrefs(email);
   if (!prefs.email_on_completed) {
@@ -30,6 +37,11 @@ export async function notifyJobCompleted(
     jobData.printMode === 'later'
       ? 'Your printout is ready for collection.'
       : 'Your printout has been printed.';
+
+  // Format price if provided
+  const priceDisplay = jobData.price ? `₹${(jobData.price / 100).toFixed(2)}` : '';
+  const pagesDisplay = jobData.pages ? `${jobData.pages} page${jobData.pages > 1 ? 's' : ''}` : '';
+  const copiesDisplay = jobData.copies && jobData.copies > 1 ? `× ${jobData.copies} copies` : '';
 
   await sendNotification(
     email,
@@ -42,8 +54,11 @@ export async function notifyJobCompleted(
         <p style="margin: 5px 0;"><strong>File:</strong> ${escapeHtml(jobData.fileName)}</p>
         <p style="margin: 5px 0;"><strong>Job ID:</strong> ${jobData.jobId}</p>
         <p style="margin: 5px 0;"><strong>Mode:</strong> ${jobData.printMode === 'later' ? 'Collect Later' : 'Print Now'}</p>
+        ${pagesDisplay ? `<p style="margin: 5px 0;"><strong>Pages:</strong> ${pagesDisplay} ${copiesDisplay}</p>` : ''}
+        ${priceDisplay ? `<p style="margin: 5px 0;"><strong>Amount Paid:</strong> ${priceDisplay}</p>` : ''}
       </div>
       ${jobData.printMode === 'later' ? '<p style="color: #ca8a04; font-weight: bold;">📦 Please collect your printout at your convenience.</p>' : ''}
+      <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">This email is your digital receipt. Keep it for your records.</p>
     </div>
   `
   );
