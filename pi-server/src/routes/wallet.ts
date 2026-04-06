@@ -18,9 +18,6 @@ function getRazorpay(): Razorpay {
   return razorpay;
 }
 
-const MIN_TOPUP = 1000;  // ₹10 in paise
-const MAX_TOPUP = 50000; // ₹500 in paise
-
 // Get wallet balance + recent transactions
 walletRouter.get('/', requireAuth, (req: AuthRequest, res: Response) => {
   try {
@@ -45,13 +42,13 @@ walletRouter.post('/topup', requireAuth, async (req: AuthRequest, res: Response)
       return;
     }
 
-    if (amount < MIN_TOPUP) {
-      res.status(400).json({ error: `Minimum top-up is ₹${MIN_TOPUP / 100}` });
+    if (amount < env.WALLET_MIN_TOPUP) {
+      res.status(400).json({ error: `Minimum top-up is ₹${env.WALLET_MIN_TOPUP / 100}` });
       return;
     }
 
-    if (amount > MAX_TOPUP) {
-      res.status(400).json({ error: `Maximum top-up is ₹${MAX_TOPUP / 100}` });
+    if (amount > env.WALLET_MAX_TOPUP) {
+      res.status(400).json({ error: `Maximum top-up is ₹${env.WALLET_MAX_TOPUP / 100}` });
       return;
     }
 

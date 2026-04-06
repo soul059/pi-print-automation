@@ -117,12 +117,8 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[UploadPage] handleSubmit called');
-    console.log('[UploadPage] files:', files.length, 'token:', token ? 'present' : 'missing');
-    console.log('[UploadPage] status:', status);
     
     if (files.length === 0 || !token) {
-      console.log('[UploadPage] Aborting: no files or no token');
       return;
     }
 
@@ -142,9 +138,7 @@ export default function UploadPage() {
         scheduledAt: scheduleForLater && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       };
 
-      console.log('[UploadPage] Uploading with config:', config);
       const result = await api.uploadFile(files, config, token);
-      console.log('[UploadPage] Upload result:', result);
 
       if (result.error) {
         if (result.error === 'daily_limit_exceeded') {
@@ -159,7 +153,6 @@ export default function UploadPage() {
       savePrefs({ paperSize, copies, duplex, color, printMode });
       navigate(`/payment/${result.jobId}`);
     } catch (err) {
-      console.error('[UploadPage] Upload error:', err);
       if (err instanceof ApiError) {
         setError(err.message);
       } else {

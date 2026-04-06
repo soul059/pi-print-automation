@@ -152,7 +152,6 @@ export const api = {
     }
     formData.append('config', JSON.stringify(config));
 
-    console.log('[API] uploadFile called, files:', fileArray.length);
     const res = await safeFetch(`${API_BASE}/api/upload`, {
       method: 'POST',
       headers: { 
@@ -162,13 +161,11 @@ export const api = {
       body: formData,
     }, 60000); // 60s timeout for uploads
     const data = await parseResponse(res);
-    console.log('[API] uploadFile response:', data);
     return data;
   },
 
   // Printer
   async getPrinterStatus() {
-    console.log('[API] getPrinterStatus, API_BASE:', API_BASE);
     const res = await safeFetch(`${API_BASE}/api/printer/status`, {
       headers: getHeaders(),
     });
@@ -231,13 +228,10 @@ export const api = {
 
   // Jobs
   async getJob(jobId: string, token: string) {
-    console.log('[API] getJob called, jobId:', jobId);
     const res = await safeFetch(`${API_BASE}/api/jobs/${jobId}`, {
       headers: getHeaders(token),
     });
-    const data = await parseResponse(res);
-    console.log('[API] getJob response:', data);
-    return data;
+    return parseResponse(res);
   },
 
   async getJobs(token: string) {
@@ -452,14 +446,10 @@ export const api = {
 
   // Wallet
   async getWallet(token: string) {
-    console.log('[API] getWallet called, API_BASE:', API_BASE);
     const res = await safeFetch(`${API_BASE}/api/wallet`, {
       headers: getHeaders(token),
     });
-    console.log('[API] getWallet response status:', res.status);
-    const data = await parseResponse(res);
-    console.log('[API] getWallet data:', data);
-    return data;
+    return parseResponse(res);
   },
 
   async walletTopup(amount: number, token: string) {

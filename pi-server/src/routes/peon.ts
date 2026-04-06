@@ -52,6 +52,15 @@ function peonAuth(req: Request, res: Response, next: () => void): void {
       res.status(401).json({ error: 'Invalid token type' });
       return;
     }
+    
+    // Check if peon is still active
+    const db = getDb();
+    const peon = db.prepare('SELECT active FROM peons WHERE id = ?').get(payload.peonId) as { active: number } | undefined;
+    if (!peon || !peon.active) {
+      res.status(401).json({ error: 'Account is deactivated' });
+      return;
+    }
+    
     (req as any).peon = payload;
     next();
   } catch (err) {

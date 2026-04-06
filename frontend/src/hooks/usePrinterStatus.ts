@@ -38,13 +38,10 @@ export function usePrinterStatus(enabled = false) {
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('[usePrinterStatus] Fetching status via REST...');
       const data = await api.getPrinterStatus();
-      console.log('[usePrinterStatus] REST response:', data);
       setStatus(data);
       setError(null);
     } catch (err: any) {
-      console.error('[usePrinterStatus] REST error:', err);
       setError(err.message || 'Failed to get printer status');
     } finally {
       setLoading(false);
@@ -82,19 +79,16 @@ export function usePrinterStatus(enabled = false) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[usePrinterStatus] Socket connected');
       socket.emit('subscribe:printer-status');
     });
 
     socket.on('printer:status', (data: PrinterStatus) => {
-      console.log('[usePrinterStatus] Socket update:', data);
       setStatus(data);
       setLoading(false);
     });
 
     // Handle queue updates (includes pause status)
     socket.on('queue:update', (data: any) => {
-      console.log('[usePrinterStatus] Queue update:', data);
       setStatus(prev => prev ? {
         ...prev,
         queueDepth: data.depth,
@@ -104,8 +98,7 @@ export function usePrinterStatus(enabled = false) {
       } : null);
     });
 
-    socket.on('connect_error', (err) => {
-      console.error('[usePrinterStatus] Socket error:', err);
+    socket.on('connect_error', () => {
       // Fallback to polling if WebSocket fails
       if (!pollingRef.current) {
         pollingRef.current = setInterval(fetchStatus, 10000);

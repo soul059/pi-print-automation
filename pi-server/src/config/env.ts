@@ -55,4 +55,13 @@ export const env = {
   // Telegram Bot (admin alerts)
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || '',
+
+  // Wallet limits (in paise)
+  WALLET_MIN_TOPUP: parseInt(process.env.WALLET_MIN_TOPUP || '1000', 10), // ₹10
+  WALLET_MAX_TOPUP: parseInt(process.env.WALLET_MAX_TOPUP || '50000', 10), // ₹500
+
+  // Queue processing
+  QUEUE_MAX_RETRIES: parseInt(process.env.QUEUE_MAX_RETRIES || '3', 10),
+  QUEUE_RETRY_DELAY_MS: parseInt(process.env.QUEUE_RETRY_DELAY_MS || '5000', 10),
+  CUPS_POLL_TIMEOUT_MS: parseInt(process.env.CUPS_POLL_TIMEOUT_MS || '600000', 10), // 10 minutes
 } as const;

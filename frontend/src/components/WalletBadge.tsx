@@ -9,27 +9,20 @@ export default function WalletBadge() {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  console.log('[WalletBadge] Rendering, token:', token ? 'present' : 'missing');
-
   useEffect(() => {
     if (!token) {
-      console.log('[WalletBadge] No token, skipping fetch');
       setLoading(false);
       return;
     }
-    console.log('[WalletBadge] Fetching wallet...');
     setLoading(true);
     api.getWallet(token).then((data) => {
-      console.log('[WalletBadge] API response:', data);
       if (typeof data.balance === 'number') setBalance(data.balance);
-    }).catch((err) => {
-      console.error('[WalletBadge] API error:', err);
+    }).catch(() => {
+      // Silently fail - wallet badge is non-critical
     }).finally(() => {
       setLoading(false);
     });
   }, [token]);
-
-  console.log('[WalletBadge] State - loading:', loading, 'balance:', balance);
 
   // Always show wallet link (with balance if available)
   return (

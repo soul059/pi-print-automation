@@ -1,5 +1,6 @@
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
+import { env } from '../config/env';
 import { transitionJob, getJob } from '../models/job';
 import * as cups from './cups';
 import * as pdf from './pdf';
@@ -9,11 +10,11 @@ import { broadcastQueueUpdate } from './printerStatus';
 import { telegram } from './telegram';
 import { hasEnoughPaper, decrementPaper } from './paperTracking';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 5000;
+const MAX_RETRIES = env.QUEUE_MAX_RETRIES;
+const RETRY_DELAY_MS = env.QUEUE_RETRY_DELAY_MS;
 const STUCK_JOB_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const CUPS_POLL_INTERVAL_MS = 3000; // Check CUPS job status every 3s
-const CUPS_POLL_TIMEOUT_MS = 10 * 60 * 1000; // Give up after 10 minutes
+const CUPS_POLL_TIMEOUT_MS = env.CUPS_POLL_TIMEOUT_MS;
 
 interface QueuedJob {
   id: string;

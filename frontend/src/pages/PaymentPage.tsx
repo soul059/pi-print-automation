@@ -41,20 +41,17 @@ export default function PaymentPage() {
   const [error, setError] = useState<Error | string | null>(null);
 
   const fetchJob = useCallback(async () => {
-    console.log('[PaymentPage] fetchJob called, jobId:', jobId, 'token:', token ? 'present' : 'missing');
     if (!jobId || !token) return;
     setLoading(true);
     setError(null);
     try {
       const data = await api.getJob(jobId, token);
-      console.log('[PaymentPage] getJob response:', data);
       if (data.error) {
         setError(data.error);
       } else {
         setJob(data);
       }
     } catch (err) {
-      console.error('[PaymentPage] getJob error:', err);
       setError(err instanceof Error ? err : new Error('Failed to load job details'));
     } finally {
       setLoading(false);
