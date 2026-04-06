@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { AdminProvider, useAdmin } from './hooks/useAdmin';
 import { I18nProvider } from './i18n/I18nContext';
+import { ConnectionProvider, ConnectionBanner } from './components/ConnectionStatus';
 import Layout from './components/Layout';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import LoginPage from './pages/LoginPage';
@@ -34,24 +35,26 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <I18nProvider>
-      <AuthProvider>
-        <AdminProvider>
-          <Layout>
-          <Toaster position="top-right" toastOptions={{
-            duration: 3000,
-            className: 'dark:bg-gray-800 dark:text-white',
-          }} />
-          <AnnouncementBanner />
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/estimate" element={<EstimatePage />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <UploadPage />
-                </ProtectedRoute>
-              }
+      <ConnectionProvider>
+        <AuthProvider>
+          <AdminProvider>
+            <Layout>
+            <ConnectionBanner />
+            <Toaster position="top-right" toastOptions={{
+              duration: 3000,
+              className: 'dark:bg-gray-800 dark:text-white',
+            }} />
+            <AnnouncementBanner />
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/estimate" element={<EstimatePage />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <UploadPage />
+                  </ProtectedRoute>
+                }
             />
             <Route
               path="/payment/:jobId"
@@ -119,6 +122,7 @@ export default function App() {
           </Layout>
         </AdminProvider>
       </AuthProvider>
+    </ConnectionProvider>
     </I18nProvider>
   );
 }

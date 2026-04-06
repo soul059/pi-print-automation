@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { api } from '../services/api';
-import { Wallet, Loader2, AlertCircle, ArrowUpCircle, ArrowDownCircle, RefreshCw } from 'lucide-react';
+import { api, ApiError } from '../services/api';
+import { CardSkeleton, ErrorDisplay, EmptyState } from '../components/UIHelpers';
+import { Wallet, Loader2, AlertCircle, ArrowUpCircle, ArrowDownCircle, RefreshCw, History } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -26,6 +27,7 @@ export default function WalletPage() {
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [topupAmount, setTopupAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [paying, setPaying] = useState(false);
@@ -34,12 +36,13 @@ export default function WalletPage() {
 
   const fetchWallet = useCallback(async () => {
     if (!token) return;
+    setLoadError(null);
     try {
       const data = await api.getWallet(token);
       setBalance(data.balance);
       setTransactions(data.transactions || []);
-    } catch {
-      setError('Failed to load wallet');
+    } catch (err) {
+      setLoadError(err instanceof Error ? err : new Error('Failed to load wallet'));
     } finally {
       setLoading(false);
     }
@@ -117,8 +120,8 @@ export default function WalletPage() {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch {
-      setError('Failed to initiate top-up');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to initiate top-up');
       setPaying(false);
     }
   };
@@ -134,8 +137,22 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 size={32} className="animate-spin text-primary-500" />
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="h-8 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <div className="h-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-xl animate-pulse" />
+        <CardSkeleton />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <h1 className="text-2xl font-bold dark:text-white flex items-center gap-2">
+          <Wallet size={24} />
+          My Wallet
+        </h1>
+        <ErrorDisplay error={loadError} onRetry={fetchWallet} />
       </div>
     );
   }
@@ -216,7 +233,11 @@ export default function WalletPage() {
         <h2 className="text-lg font-semibold">Transaction History</h2>
 
         {transactions.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">No transactions yet</p>
+          <EmptyState
+            icon={<History size={32} />}
+            title="No transactions yet"
+            description="Your wallet history will appear here"
+          />
         ) : (
           <div className="space-y-3">
             {transactions.map((tx) => (

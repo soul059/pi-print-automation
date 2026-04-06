@@ -5,6 +5,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import WalletBadge from './WalletBadge';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
+import { ConnectionIndicator } from './ConnectionStatus';
 import { useTranslation } from '../i18n/I18nContext';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -70,6 +71,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-4">
+            <ConnectionIndicator />
             <LanguageSelector />
             <ThemeToggle />
             <Link

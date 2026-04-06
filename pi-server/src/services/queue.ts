@@ -297,28 +297,23 @@ async function processJob(jobId: string): Promise<void> {
 
   try {
     // Determine identity page strategy:
-    // 1. If printReceipt=true → Full identity page (user paid for it)
-    // 2. If collect-later OR multi-copy → Footer on last page (helps staff identify)
-    // 3. Otherwise (single-copy print-now) → No printed identity (email receipt only)
+    // Only add printed identity if user explicitly requested it (print_receipt toggle ON)
+    // Otherwise, user receives email receipt only (no footer or extra page)
     let printFilePath = job.file_path;
     
-    const identityData: pdf.IdentityPageData = {
-      userName: job.user_name,
-      userEmail: job.user_email,
-      jobId: job.id,
-      printMode: job.print_mode as 'now' | 'later',
-    };
-
     if (job.print_receipt === 1) {
-      // User explicitly requested full receipt page (charged)
+      // User explicitly requested full receipt page (toggle ON, charged extra)
+      const identityData: pdf.IdentityPageData = {
+        userName: job.user_name,
+        userEmail: job.user_email,
+        jobId: job.id,
+        printMode: job.print_mode as 'now' | 'later',
+      };
       printFilePath = await pdf.appendIdentityPage(job.file_path, identityData);
       logger.info({ jobId: job.id }, 'Full identity page appended (user requested)');
-    } else if (job.print_mode === 'later' || job.copies > 1) {
-      // Collect-later or multi-copy: add footer to last page for identification
-      printFilePath = await pdf.appendIdentityFooter(job.file_path, identityData);
-      logger.info({ jobId: job.id, printMode: job.print_mode, copies: job.copies }, 'Identity footer appended');
     } else {
-      // Single-copy print-now: no printed identity (email receipt only)
+      // User did NOT request printed receipt (toggle OFF) — email receipt only
+      // No footer, no extra page added to their document
       logger.info({ jobId: job.id }, 'No printed identity (email receipt only)');
     }
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
 import { Mail, User, KeyRound, Loader2, ArrowRight } from 'lucide-react';
 import { useTranslation } from '../i18n/I18nContext';
 
@@ -36,8 +36,9 @@ export default function LoginPage() {
       }
       login(result.token, result.email, result.name, result.refreshToken);
       navigate('/');
-    } catch {
-      setError('Google sign-in failed. Please try again.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Google sign-in failed. Please try again.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -56,8 +57,9 @@ export default function LoginPage() {
       } else {
         setError(result.reason || 'Email not allowed');
       }
-    } catch {
-      setError('Failed to validate email. Please try again.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to validate email. Please try again.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -76,8 +78,9 @@ export default function LoginPage() {
       } else {
         setError(result.reason || 'Invalid OTP');
       }
-    } catch {
-      setError('Failed to verify OTP. Please try again.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to verify OTP. Please try again.';
+      setError(message);
     } finally {
       setLoading(false);
     }

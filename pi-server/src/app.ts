@@ -41,8 +41,16 @@ app.use(express.json({
   },
 }));
 
-// Health check
+// Health check (both / and /api/ paths for compatibility)
 app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAdmin } from '../../hooks/useAdmin';
 import { api } from '../../services/api';
+import { CardSkeleton, ErrorDisplay } from '../../components/UIHelpers';
 import toast from 'react-hot-toast';
-import { ArrowLeft, BarChart3, Loader2, RefreshCw, TrendingUp, FileText, AlertTriangle, IndianRupee, File, Clock } from 'lucide-react';
+import { ArrowLeft, BarChart3, RefreshCw, TrendingUp, FileText, IndianRupee, File, Clock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface AnalyticsData {
@@ -25,17 +26,18 @@ export default function AnalyticsPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError(null);
     try {
       const result = await api.adminGetAnalytics(token!);
       setData(result);
-    } catch {
-      setError('Failed to load analytics');
-      toast.error('Failed to load analytics');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error('Failed to load analytics');
+      setError(e);
+      toast.error(e.message);
     }
     setLoading(false);
   }, [token]);
@@ -44,20 +46,35 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <Loader2 size={28} className="animate-spin text-primary-500" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="h-6 w-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <CardSkeleton key={i} />)}
+        </div>
+        <CardSkeleton />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="text-center py-16">
-        <AlertTriangle size={32} className="mx-auto text-amber-500 mb-3" />
-        <p className="text-gray-500 dark:text-gray-400 mb-4">{error || 'No data available'}</p>
-        <button onClick={fetchAnalytics} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 text-sm">
-          Try Again
-        </button>
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/admin')}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-white">
+            <BarChart3 size={24} className="text-primary-600" />
+            Analytics
+          </h1>
+        </div>
+        <ErrorDisplay error={error || 'No data available'} onRetry={fetchAnalytics} />
       </div>
     );
   }

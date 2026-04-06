@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuePosition } from '../hooks/useQueuePosition';
 import { api } from '../services/api';
+import { CardSkeleton, ErrorDisplay } from '../components/UIHelpers';
 import {
   Loader2,
   CheckCircle,
@@ -71,6 +72,7 @@ export default function StatusPage() {
   const navigate = useNavigate();
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [collectingJob, setCollectingJob] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -82,8 +84,9 @@ export default function StatusPage() {
     try {
       const data = await api.getJob(jobId, token);
       setJob(data);
-    } catch {
-      // ignore
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load job'));
     } finally {
       setLoading(false);
     }
@@ -98,17 +101,20 @@ export default function StatusPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 size={32} className="animate-spin text-primary-500" />
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="h-5 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <CardSkeleton />
       </div>
     );
   }
 
-  if (!job) {
+  if (error || !job) {
     return (
-      <div className="text-center py-12">
-        <XCircle size={48} className="mx-auto text-red-500 mb-4" />
-        <p className="text-lg">Job not found</p>
+      <div className="max-w-lg mx-auto space-y-6">
+        <Link to="/jobs" className="flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600">
+          <ArrowLeft size={16} /> Back to jobs
+        </Link>
+        <ErrorDisplay error={error || 'Job not found'} onRetry={fetchJob} />
       </div>
     );
   }

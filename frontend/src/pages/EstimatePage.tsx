@@ -2,23 +2,64 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calculator, IndianRupee, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
+import { CardSkeleton, ErrorDisplay } from '../components/UIHelpers';
 
 export default function EstimatePage() {
   const navigate = useNavigate();
   const [pricingConfig, setPricingConfig] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [pageCount, setPageCount] = useState<number>(1);
   const [copies, setCopies] = useState<number>(1);
   const [color, setColor] = useState<'grayscale' | 'color'>('grayscale');
   const [duplex, setDuplex] = useState<boolean>(false);
 
+  const fetchPricing = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const config = await api.getPricingConfig();
+      setPricingConfig(config);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load pricing'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    api.getPricingConfig().then(setPricingConfig).catch(() => {});
+    fetchPricing();
   }, []);
 
-  if (!pricingConfig) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <p className="text-gray-500">Loading pricing...</p>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-gray-200 dark:bg-gray-700 p-3 rounded-xl animate-pulse w-14 h-14" />
+          <div className="space-y-2">
+            <div className="h-6 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            <div className="h-4 w-56 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          </div>
+        </div>
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-primary-100 dark:bg-primary-900 p-3 rounded-xl">
+            <Calculator size={28} className="text-primary-600 dark:text-primary-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Cost Estimator</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Calculate printing costs before uploading</p>
+          </div>
+        </div>
+        <ErrorDisplay error={error} onRetry={fetchPricing} />
       </div>
     );
   }

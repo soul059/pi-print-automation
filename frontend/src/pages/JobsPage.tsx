@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { FileText, Loader2, Plus, Download, BarChart3, ChevronDown, ChevronUp, Bell, Trophy } from 'lucide-react';
+import { FileText, Plus, Download, BarChart3, ChevronDown, ChevronUp, Bell, Trophy } from 'lucide-react';
+import { ListSkeleton, ErrorDisplay, EmptyState } from '../components/UIHelpers';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,7 +20,7 @@ export default function JobsPage() {
   const { token } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [showStats, setShowStats] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<{ emailOnCompleted: boolean; emailOnFailed: boolean } | null>(null);
@@ -27,44 +28,48 @@ export default function JobsPage() {
   const [leaderboard, setLeaderboard] = useState<any>(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-  useEffect(() => {
+  const loadJobs = async () => {
     if (!token) return;
-    api.getJobs(token)
-      .then((data) => {
-        setJobs(data.jobs || []);
-      })
-      .catch((err) => {
-        setError(err.message || 'Failed to load jobs');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-    api.getJobStats(token).then((data) => {
-      if (data.stats) setStats(data);
-    }).catch(() => {});
-    api.getNotificationPrefs(token).then(setNotifPrefs).catch(() => {});
-    api.getLeaderboard().then((data) => { if (data.leaderboard) setLeaderboard(data); }).catch(() => {});
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getJobs(token);
+      setJobs(data.jobs || []);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load jobs'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadJobs();
+    if (token) {
+      api.getJobStats(token).then((data) => {
+        if (data.stats) setStats(data);
+      }).catch(() => {});
+      api.getNotificationPrefs(token).then(setNotifPrefs).catch(() => {});
+      api.getLeaderboard().then((data) => { if (data.leaderboard) setLeaderboard(data); }).catch(() => {});
+    }
   }, [token]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 size={32} className="animate-spin text-primary-500" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-10 w-28 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        </div>
+        <ListSkeleton count={4} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600 dark:text-red-400 font-medium mb-2">Failed to load jobs</p>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 text-primary-600 text-sm hover:underline"
-        >
-          Try again
-        </button>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold dark:text-white">My Print Jobs</h1>
+        <ErrorDisplay error={error} onRetry={loadJobs} />
       </div>
     );
   }
@@ -143,13 +148,12 @@ export default function JobsPage() {
       )}
 
       {jobs.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">No print jobs yet</p>
-          <Link to="/" className="text-primary-600 text-sm hover:underline mt-2 inline-block">
-            Upload your first document →
-          </Link>
-        </div>
+        <EmptyState
+          icon={<FileText size={48} />}
+          title="No print jobs yet"
+          description="Upload your first document to get started"
+          action={{ label: 'Upload Document', onClick: () => window.location.href = '/' }}
+        />
       ) : (
         <div className="space-y-3">
           {jobs.map((job) => (

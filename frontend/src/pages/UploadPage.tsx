@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePrinterStatus } from '../hooks/usePrinterStatus';
 import { usePreferences } from '../hooks/usePreferences';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
 import PrinterStatusBadge from '../components/PrinterStatusBadge';
 import {
   Upload,
@@ -160,7 +160,11 @@ export default function UploadPage() {
       navigate(`/payment/${result.jobId}`);
     } catch (err) {
       console.error('[UploadPage] Upload error:', err);
-      setError('Upload failed. Please try again.');
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Upload failed. Please check your connection and try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAdmin } from '../../hooks/useAdmin';
 import { api } from '../../services/api';
+import { CardSkeleton } from '../../components/UIHelpers';
 import toast from 'react-hot-toast';
 import {
   Activity,
@@ -1133,8 +1134,9 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 function LoadingSpinner() {
   return (
-    <div className="flex justify-center py-12">
-      <Loader2 size={28} className="animate-spin text-primary-500" />
+    <div className="space-y-4">
+      <CardSkeleton />
+      <CardSkeleton />
     </div>
   );
 }

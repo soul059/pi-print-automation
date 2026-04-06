@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAdmin } from '../../hooks/useAdmin';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+import { CardSkeleton, ErrorDisplay, EmptyState } from '../../components/UIHelpers';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft,
@@ -30,6 +31,7 @@ export default function AnnouncementsPage() {
   const navigate = useNavigate();
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ message: '', type: 'info' });
   const [formError, setFormError] = useState('');
@@ -37,11 +39,14 @@ export default function AnnouncementsPage() {
 
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.adminGetAnnouncements(token!);
       setAnnouncements(data.announcements || []);
-    } catch {
-      toast.error('Failed to load announcements');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error('Failed to load announcements');
+      setLoadError(e);
+      toast.error(e.message);
     }
     setLoading(false);
   }, [token]);
@@ -99,6 +104,39 @@ export default function AnnouncementsPage() {
     warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
     critical: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-6 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        </div>
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/admin')}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-xl font-bold flex items-center gap-2 dark:text-white">
+            <Megaphone size={22} className="text-primary-600" />
+            Announcements
+          </h1>
+        </div>
+        <ErrorDisplay error={loadError} onRetry={fetchAnnouncements} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -180,16 +218,16 @@ export default function AnnouncementsPage() {
         </form>
       )}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 size={28} className="animate-spin text-primary-500" />
-        </div>
-      ) : announcements.length === 0 ? (
-        <div className="text-center py-12">
-          <Megaphone size={32} className="mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-gray-400 dark:text-gray-500">No announcements yet</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Create one to notify users about important updates</p>
-        </div>
+      {announcements.length === 0 ? (
+        <EmptyState
+          icon={<Megaphone size={32} />}
+          title="No announcements yet"
+          description="Create one to notify users about important updates"
+          action={{
+            label: 'New Announcement',
+            onClick: () => setShowForm(true)
+          }}
+        />
       ) : (
         <div className="space-y-2">
           {announcements.map((a: any) => (

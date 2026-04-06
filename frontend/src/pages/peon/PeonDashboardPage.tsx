@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+import { CardSkeleton, ErrorDisplay } from '../../components/UIHelpers';
 import { 
   Printer, 
   LogOut, 
@@ -54,6 +55,7 @@ export default function PeonDashboardPage() {
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
   const [recentReloads, setRecentReloads] = useState<RecentReload[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   
@@ -71,6 +73,7 @@ export default function PeonDashboardPage() {
     }
 
     if (showRefresh) setRefreshing(true);
+    setLoadError(null);
 
     try {
       const [statusRes, activityRes] = await Promise.all([
@@ -93,7 +96,9 @@ export default function PeonDashboardPage() {
         navigate('/peon');
         return;
       }
-      setError(err.message || 'Failed to load data');
+      const e = err instanceof Error ? err : new Error(err.message || 'Failed to load data');
+      setLoadError(e);
+      setError(e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,10 +167,24 @@ export default function PeonDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-          <Loader2 className="animate-spin" size={20} />
-          <span>Loading...</span>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+          <CardSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError && !printers.length) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          <ErrorDisplay error={loadError} onRetry={() => loadData()} />
         </div>
       </div>
     );

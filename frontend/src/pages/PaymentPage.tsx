@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
 import PrinterStatusBadge from '../components/PrinterStatusBadge';
 import PdfPreview from '../components/PdfPreview';
-import { CreditCard, Loader2, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
+import { CardSkeleton, ErrorDisplay } from '../components/UIHelpers';
+import { CreditCard, Loader2, CheckCircle, Wallet } from 'lucide-react';
 
 // Razorpay types
 declare global {
@@ -37,11 +38,13 @@ export default function PaymentPage() {
   const [paying, setPaying] = useState(false);
   const [walletPaying, setWalletPaying] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<Error | string | null>(null);
 
   const fetchJob = useCallback(async () => {
     console.log('[PaymentPage] fetchJob called, jobId:', jobId, 'token:', token ? 'present' : 'missing');
     if (!jobId || !token) return;
+    setLoading(true);
+    setError(null);
     try {
       const data = await api.getJob(jobId, token);
       console.log('[PaymentPage] getJob response:', data);
@@ -52,7 +55,7 @@ export default function PaymentPage() {
       }
     } catch (err) {
       console.error('[PaymentPage] getJob error:', err);
-      setError('Failed to load job details');
+      setError(err instanceof Error ? err : new Error('Failed to load job details'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +80,7 @@ export default function PaymentPage() {
   const handleWalletPayment = async () => {
     if (!jobId || !token) return;
     setWalletPaying(true);
-    setError('');
+    setError(null);
 
     try {
       const result = await api.payWithWallet(jobId, token);
@@ -86,8 +89,8 @@ export default function PaymentPage() {
       } else {
         setError(result.error || 'Wallet payment failed');
       }
-    } catch {
-      setError('Wallet payment failed');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Wallet payment failed');
     } finally {
       setWalletPaying(false);
     }
@@ -96,7 +99,7 @@ export default function PaymentPage() {
   const handlePayment = async () => {
     if (!jobId || !token) return;
     setPaying(true);
-    setError('');
+    setError(null);
 
     try {
       const orderData = await api.createPayment(jobId, token);
@@ -144,8 +147,8 @@ export default function PaymentPage() {
             } else {
               setError('Payment verification failed');
             }
-          } catch {
-            setError('Payment verification failed');
+          } catch (err) {
+            setError(err instanceof ApiError ? err.message : 'Payment verification failed');
           }
           setPaying(false);
         },
@@ -158,25 +161,31 @@ export default function PaymentPage() {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch {
-      setError('Failed to initiate payment');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to initiate payment');
       setPaying(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 size={32} className="animate-spin text-primary-500" />
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <CardSkeleton />
+        <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+        <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
       </div>
     );
   }
 
   if (!job) {
     return (
-      <div className="text-center py-12">
-        <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-        <p className="text-lg text-gray-700 dark:text-gray-300">Job not found</p>
+      <div className="max-w-lg mx-auto space-y-6">
+        <h1 className="text-2xl font-bold dark:text-white">Payment</h1>
+        <ErrorDisplay 
+          error={error || 'Job not found'} 
+          onRetry={fetchJob}
+        />
       </div>
     );
   }
@@ -242,10 +251,7 @@ export default function PaymentPage() {
       )}
 
       {error && (
-        <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-2 rounded-lg flex items-center gap-2">
-          <AlertCircle size={16} />
-          {error}
-        </p>
+        <ErrorDisplay error={error} compact />
       )}
 
       {/* Wallet Payment Option */}
