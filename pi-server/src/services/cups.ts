@@ -2,11 +2,28 @@ import { execFile } from 'child_process';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
+export type PaperStatus = 'ok' | 'low' | 'empty' | 'jam' | 'unknown';
+export type PrinterErrorType = 'none' | 'paper_empty' | 'paper_jam' | 'paper_low' | 'cover_open' | 'offline' | 'other';
+
 export interface PrinterStatus {
   online: boolean;
-  status: string; // idle, printing, stopped, unknown
+  status: string; // idle, printing, stopped, disconnected, error, unknown
   accepting: boolean;
   printerName: string;
+  // Enhanced status fields
+  paperStatus: PaperStatus;
+  errorType: PrinterErrorType;
+  errorMessage: string | null;
+  canRetry: boolean; // false if error requires physical intervention (paper jam, empty)
+}
+
+export interface CupsJobInfo {
+  jobId: string;
+  printerName: string;
+  status: 'pending' | 'processing' | 'completed' | 'canceled' | 'aborted' | 'unknown';
+  createdAt: Date | null;
+  completedAt: Date | null;
+  errorReason: string | null;
 }
 
 export interface PrintOptions {
@@ -79,7 +96,16 @@ export async function listPrinters(): Promise<string[]> {
 export async function getPrinterStatus(printerName?: string): Promise<PrinterStatus> {
   const name = printerName || (await getDefaultPrinter());
   if (!name) {
-    return { online: false, status: 'unknown', accepting: false, printerName: '' };
+    return { 
+      online: false, 
+      status: 'unknown', 
+      accepting: false, 
+      printerName: '',
+      paperStatus: 'unknown',
+      errorType: 'none',
+      errorMessage: null,
+      canRetry: true,
+    };
   }
 
   const safeName = sanitizePrinterName(name);
@@ -93,6 +119,45 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
     // Check for connection issues - "not connected", "Unplugged or turned off", etc.
     const isDisconnected = /not connected|unplugged|turned off|offline|unreachable/i.test(output);
 
+    // Enhanced paper status detection
+    const isPaperEmpty = /media-empty|out of paper|load paper|no paper|paper out|tray.*empty|media needed/i.test(output);
+    const isPaperJam = /media-jam|paper jam|jam|media.*stuck|clear.*jam/i.test(output);
+    const isPaperLow = /media-low|paper low|low paper/i.test(output);
+    const isCoverOpen = /cover.*open|door.*open|lid.*open|access.*open/i.test(output);
+
+    // Determine paper status
+    let paperStatus: PaperStatus = 'ok';
+    if (isPaperEmpty) paperStatus = 'empty';
+    else if (isPaperJam) paperStatus = 'jam';
+    else if (isPaperLow) paperStatus = 'low';
+
+    // Determine error type and message
+    let errorType: PrinterErrorType = 'none';
+    let errorMessage: string | null = null;
+    let canRetry = true;
+
+    if (isPaperEmpty) {
+      errorType = 'paper_empty';
+      errorMessage = 'Printer is out of paper. Please load paper.';
+      canRetry = false; // Requires physical intervention
+    } else if (isPaperJam) {
+      errorType = 'paper_jam';
+      errorMessage = 'Paper jam detected. Please clear the jam.';
+      canRetry = false; // Requires physical intervention
+    } else if (isPaperLow) {
+      errorType = 'paper_low';
+      errorMessage = 'Paper is running low.';
+      canRetry = true; // Can still print
+    } else if (isCoverOpen) {
+      errorType = 'cover_open';
+      errorMessage = 'Printer cover is open. Please close it.';
+      canRetry = false; // Requires physical intervention
+    } else if (isDisconnected) {
+      errorType = 'offline';
+      errorMessage = 'Printer is disconnected or turned off.';
+      canRetry = false;
+    }
+
     let accepting = false;
     try {
       const acceptOutput = await execFileAsync('lpstat', ['-a', safeName]);
@@ -101,11 +166,17 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
       accepting = !isStopped;
     }
 
-    // Printer is only truly online if enabled AND connected
-    const online = !isStopped && !isDisconnected;
+    // Printer is only truly online if enabled AND connected AND no critical errors
+    const online = !isStopped && !isDisconnected && !isPaperEmpty && !isPaperJam && !isCoverOpen;
     
     let status: string;
-    if (isDisconnected) {
+    if (isPaperEmpty) {
+      status = 'paper_empty';
+    } else if (isPaperJam) {
+      status = 'paper_jam';
+    } else if (isCoverOpen) {
+      status = 'cover_open';
+    } else if (isDisconnected) {
       status = 'disconnected';
     } else if (isStopped) {
       status = 'stopped';
@@ -120,11 +191,24 @@ export async function getPrinterStatus(printerName?: string): Promise<PrinterSta
     return {
       online,
       status,
-      accepting: accepting && online, // Don't accept if disconnected
+      accepting: accepting && online, // Don't accept if disconnected or has errors
       printerName: safeName,
+      paperStatus,
+      errorType,
+      errorMessage,
+      canRetry,
     };
   } catch {
-    return { online: false, status: 'unknown', accepting: false, printerName: safeName };
+    return { 
+      online: false, 
+      status: 'unknown', 
+      accepting: false, 
+      printerName: safeName,
+      paperStatus: 'unknown',
+      errorType: 'none',
+      errorMessage: null,
+      canRetry: true,
+    };
   }
 }
 
@@ -185,6 +269,155 @@ export async function getJobStatus(cupsJobId: string): Promise<string> {
     return 'completed';
   } catch {
     return 'unknown';
+  }
+}
+
+/**
+ * Get detailed CUPS job information including completion status
+ * Used for duplicate print prevention and job verification
+ */
+export async function getCupsJobInfo(cupsJobId: string): Promise<CupsJobInfo> {
+  const safeJobId = sanitizeCupsJobId(cupsJobId);
+  const result: CupsJobInfo = {
+    jobId: safeJobId,
+    printerName: '',
+    status: 'unknown',
+    createdAt: null,
+    completedAt: null,
+    errorReason: null,
+  };
+
+  try {
+    // Extract printer name from job ID (format: PrinterName-123)
+    const printerMatch = safeJobId.match(/^(.+?)-\d+$/);
+    if (printerMatch) {
+      result.printerName = printerMatch[1];
+    }
+
+    // Check if job is still in queue
+    const queueOutput = await execFileAsync('lpstat', ['-o']);
+    if (queueOutput.includes(safeJobId)) {
+      // Job is still in queue - check if it's processing or pending
+      const isProcessing = queueOutput.includes(`${safeJobId} `) && 
+        (queueOutput.includes('processing') || queueOutput.includes('printing'));
+      result.status = isProcessing ? 'processing' : 'pending';
+      return result;
+    }
+
+    // Job not in active queue - check completed jobs history
+    // CUPS keeps completed job history in /var/log/cups/page_log or via lpstat -W completed
+    try {
+      const completedOutput = await execFileAsync('lpstat', ['-W', 'completed', '-o']);
+      if (completedOutput.includes(safeJobId)) {
+        result.status = 'completed';
+        result.completedAt = new Date(); // Approximate
+        return result;
+      }
+    } catch {
+      // lpstat -W may not be available on all systems
+    }
+
+    // If job was in our system but not in CUPS queue or completed list,
+    // it was likely completed and aged out of CUPS history
+    result.status = 'completed';
+    return result;
+  } catch (err: any) {
+    logger.warn({ cupsJobId, err: err.message }, 'Failed to get CUPS job info');
+    return result;
+  }
+}
+
+/**
+ * Check if a CUPS job has completed successfully
+ * Returns: 'completed' | 'printing' | 'processing' | 'pending' | 'failed' | 'unknown'
+ */
+export async function verifyCupsJobCompletion(cupsJobId: string): Promise<{
+  completed: boolean;
+  status: 'completed' | 'printing' | 'processing' | 'pending' | 'failed' | 'unknown';
+  errorReason: string | null;
+}> {
+  try {
+    const jobInfo = await getCupsJobInfo(cupsJobId);
+    
+    if (jobInfo.status === 'completed') {
+      return { completed: true, status: 'completed', errorReason: null };
+    }
+    
+    if (jobInfo.status === 'processing') {
+      return { completed: false, status: 'processing', errorReason: null };
+    }
+    
+    if (jobInfo.status === 'pending') {
+      return { completed: false, status: 'pending', errorReason: null };
+    }
+
+    if (jobInfo.status === 'aborted' || jobInfo.status === 'canceled') {
+      return { completed: false, status: 'failed', errorReason: `Job ${jobInfo.status}` };
+    }
+
+    return { completed: false, status: 'unknown', errorReason: null };
+  } catch (err: any) {
+    return { completed: false, status: 'unknown', errorReason: err.message };
+  }
+}
+
+/**
+ * Get all active CUPS jobs with their ages (for stuck job detection)
+ */
+export async function getActiveJobsWithAge(): Promise<Array<{
+  jobId: string;
+  printerName: string;
+  ageSeconds: number;
+  status: string;
+}>> {
+  const jobs: Array<{ jobId: string; printerName: string; ageSeconds: number; status: string }> = [];
+  
+  try {
+    // lpstat -o shows active jobs with timestamps
+    const output = await execFileAsync('lpstat', ['-o', '-l']);
+    const lines = output.split('\n');
+    
+    let currentJob: any = null;
+    
+    for (const line of lines) {
+      // Job line format: "PrinterName-123 user 1024 Mon Mar 31 10:30:00 2026"
+      const jobMatch = line.match(/^(\S+-\d+)\s+\S+\s+\d+\s+(.+)$/);
+      if (jobMatch) {
+        if (currentJob) jobs.push(currentJob);
+        
+        const jobId = jobMatch[1];
+        const dateStr = jobMatch[2];
+        const printerMatch = jobId.match(/^(.+?)-\d+$/);
+        
+        let ageSeconds = 0;
+        try {
+          const jobDate = new Date(dateStr);
+          ageSeconds = Math.floor((Date.now() - jobDate.getTime()) / 1000);
+        } catch {
+          ageSeconds = 0;
+        }
+        
+        currentJob = {
+          jobId,
+          printerName: printerMatch ? printerMatch[1] : '',
+          ageSeconds,
+          status: 'pending',
+        };
+      }
+      
+      // Check for status in detail lines
+      if (currentJob && line.includes('Status:')) {
+        if (line.includes('processing') || line.includes('printing')) {
+          currentJob.status = 'processing';
+        }
+      }
+    }
+    
+    if (currentJob) jobs.push(currentJob);
+    
+    return jobs;
+  } catch {
+    return [];
   }
 }
 

@@ -528,4 +528,160 @@ export const api = {
     });
     return res.json();
   },
+
+  // Queue Control (admin)
+  async adminGetQueueStatus(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/queue/status`, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminPauseQueue(reason: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/queue/pause`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ reason }),
+    });
+    return res.json();
+  },
+
+  async adminResumeQueue(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/queue/resume`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminForceResumeQueue(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/queue/force-resume`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminAcknowledgePaper(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/queue/acknowledge-paper`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  // ============ PEON API ============
+
+  async peonLogin(username: string, password: string) {
+    const res = await fetch(`${API_BASE}/api/peon/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ username, password }),
+    });
+    return res.json();
+  },
+
+  async peonGetStatus(token: string) {
+    const res = await fetch(`${API_BASE}/api/peon/status`, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async peonAddPaper(printerName: string, count: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/peon/paper/add`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ printerName, count }),
+    });
+    return res.json();
+  },
+
+  async peonGetActivity(token: string, limit?: number) {
+    const url = limit 
+      ? `${API_BASE}/api/peon/activity?limit=${limit}`
+      : `${API_BASE}/api/peon/activity`;
+    const res = await fetch(url, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async peonGetMe(token: string) {
+    const res = await fetch(`${API_BASE}/api/peon/me`, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  // Admin - Peon Management
+  async adminGetPeons(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/peons`, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminCreatePeon(username: string, password: string, displayName: string, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/peons`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ username, password, displayName }),
+    });
+    return res.json();
+  },
+
+  async adminUpdatePeon(peonId: number, updates: { displayName?: string; password?: string; active?: boolean }, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/peons/${peonId}`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify(updates),
+    });
+    return res.json();
+  },
+
+  async adminDeletePeon(peonId: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/peons/${peonId}`, {
+      method: 'DELETE',
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  // Admin - Paper Tracking
+  async adminGetPaperStatus(token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/paper/status`, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
+
+  async adminAddPaper(printerName: string, count: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/paper/add`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ printerName, count }),
+    });
+    return res.json();
+  },
+
+  async adminSetPaperThreshold(printerName: string, threshold: number, token: string) {
+    const res = await fetch(`${API_BASE}/api/admin/paper/threshold/${encodeURIComponent(printerName)}`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify({ threshold }),
+    });
+    return res.json();
+  },
+
+  async adminGetPaperHistory(token: string, printerName?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (printerName) params.set('printer', printerName);
+    if (limit) params.set('limit', limit.toString());
+    const url = `${API_BASE}/api/admin/paper/history${params.toString() ? '?' + params.toString() : ''}`;
+    const res = await fetch(url, {
+      headers: getHeaders(token),
+    });
+    return res.json();
+  },
 };

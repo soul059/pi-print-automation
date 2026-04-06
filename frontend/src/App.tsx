@@ -16,6 +16,8 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AnalyticsPage from './pages/admin/AnalyticsPage';
 import AnnouncementsPage from './pages/admin/AnnouncementsPage';
+import PeonLoginPage from './pages/peon/PeonLoginPage';
+import PeonDashboardPage from './pages/peon/PeonDashboardPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -109,6 +111,9 @@ export default function App() {
                 </AdminRoute>
               }
             />
+            {/* Peon Routes */}
+            <Route path="/peon" element={<PeonLoginPage />} />
+            <Route path="/peon/dashboard" element={<PeonDashboardPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </Layout>

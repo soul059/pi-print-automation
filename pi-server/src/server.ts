@@ -3,9 +3,10 @@ import { env } from './config/env';
 import { logger } from './config/logger';
 import { runMigrations } from './db/migrations';
 import { initDb, closeDb } from './db/connection';
-import { startJobRecovery } from './services/queue';
+import { startJobRecovery, restoreQueueState } from './services/queue';
 import { startScheduler, stopScheduler } from './services/scheduler';
 import { startCleanup, stopCleanup } from './services/cleanup';
+import { startBackgroundMonitoring, stopBackgroundMonitoring } from './services/printerStatus';
 import { telegram } from './services/telegram';
 import fs from 'fs';
 import path from 'path';
@@ -40,10 +41,14 @@ async function main() {
   // Run database migrations
   runMigrations();
 
+  // Restore queue state from database (may be paused from before restart)
+  restoreQueueState();
+
   // Recover any paid jobs that were interrupted
-  startJobRecovery();
+  const recoveredJobs = startJobRecovery();
 
   // Recover any pending refunds that were interrupted by crash/power cut
+  let pendingRefundsCount = 0;
   {
     const { getDb: getDatabase } = await import('./db/connection');
     const { processRefund } = await import('./services/refund');
@@ -51,6 +56,7 @@ async function main() {
     const pendingRefunds = recDb
       .prepare("SELECT job_id FROM payments WHERE refund_status = 'pending'")
       .all() as Array<{ job_id: string }>;
+    pendingRefundsCount = pendingRefunds.length;
     if (pendingRefunds.length > 0) {
       logger.info({ count: pendingRefunds.length }, 'Recovering pending refunds');
       for (const { job_id } of pendingRefunds) {
@@ -71,6 +77,11 @@ async function main() {
   httpServer.listen(env.PORT, () => {
     logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Print server started');
     telegram.serverStarted().catch(() => {});
+    
+    // Send recovery notification if jobs were recovered
+    if (recoveredJobs > 0 || pendingRefundsCount > 0) {
+      telegram.serverRecovered(recoveredJobs, pendingRefundsCount).catch(() => {});
+    }
   });
 
   // Graceful shutdown
@@ -78,6 +89,7 @@ async function main() {
     logger.info('Shutting down...');
     stopScheduler();
     stopCleanup();
+    stopBackgroundMonitoring();
 
     // Force exit after 10 seconds if graceful shutdown hangs
     const forceExit = setTimeout(() => {

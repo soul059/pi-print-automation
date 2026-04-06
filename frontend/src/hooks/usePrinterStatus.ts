@@ -9,6 +9,15 @@ interface PrinterStatus {
   printerName: string;
   queueDepth: number;
   estimatedWait: string;
+  // Enhanced status fields
+  paperStatus?: 'ok' | 'low' | 'empty' | 'jam' | 'unknown';
+  errorType?: 'none' | 'paper_empty' | 'paper_jam' | 'paper_low' | 'cover_open' | 'offline' | 'other';
+  errorMessage?: string | null;
+  canRetry?: boolean;
+  // Queue status
+  queuePaused?: boolean;
+  queuePauseReason?: string | null;
+  // Other
   operatingHours?: { allowed: boolean; message?: string };
   capabilities?: {
     color: boolean;
@@ -81,6 +90,18 @@ export function usePrinterStatus(enabled = false) {
       console.log('[usePrinterStatus] Socket update:', data);
       setStatus(data);
       setLoading(false);
+    });
+
+    // Handle queue updates (includes pause status)
+    socket.on('queue:update', (data: any) => {
+      console.log('[usePrinterStatus] Queue update:', data);
+      setStatus(prev => prev ? {
+        ...prev,
+        queueDepth: data.depth,
+        estimatedWait: `${data.estimatedWait} minutes`,
+        queuePaused: data.paused,
+        queuePauseReason: data.pauseReason,
+      } : null);
     });
 
     socket.on('connect_error', (err) => {

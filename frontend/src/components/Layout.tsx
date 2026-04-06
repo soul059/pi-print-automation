@@ -1,6 +1,7 @@
 import { useAuth } from '../hooks/useAuth';
+import { useAdmin } from '../hooks/useAdmin';
 import { Printer, LogOut, History, Calculator } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import WalletBadge from './WalletBadge';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
@@ -8,16 +9,59 @@ import { useTranslation } from '../i18n/I18nContext';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, email, logout } = useAuth();
+  useAdmin(); // Keep provider active
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
 
+  const isPeonRoute = location.pathname.startsWith('/peon');
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Peon routes have their own layout - render children only
+  if (isPeonRoute) {
+    return <>{children}</>;
+  }
+
+  // Admin routes get admin navbar
+  if (isAdminRoute) {
+    // Admin login page - minimal layout
+    if (location.pathname === '/admin/login') {
+      return (
+        <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+          <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">{children}</main>
+        </div>
+      );
+    }
+
+    // Admin dashboard - minimal header (sidebar handles navigation)
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+        <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <Link to="/admin" className="flex items-center gap-2 text-primary-600 font-bold text-lg">
+              <Printer size={24} />
+              <span>{t('app.title')} — Admin</span>
+            </Link>
+
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1">{children}</main>
+      </div>
+    );
+  }
+
+  // User routes - default navbar
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-primary-600 font-bold text-lg">

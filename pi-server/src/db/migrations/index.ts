@@ -293,4 +293,50 @@ const migrations = [
       `ALTER TABLE jobs ADD COLUMN print_receipt INTEGER NOT NULL DEFAULT 0`,
     ],
   },
+  {
+    name: '018_queue_paused_setting',
+    statements: [
+      // Queue pause state for power-cut recovery
+      `INSERT OR IGNORE INTO settings (key, value) VALUES ('queue_paused', 'false')`,
+      `INSERT OR IGNORE INTO settings (key, value) VALUES ('queue_pause_reason', '')`,
+    ],
+  },
+  {
+    name: '019_peon_and_paper_tracking',
+    statements: [
+      // Peon users table
+      `CREATE TABLE IF NOT EXISTS peons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        display_name TEXT,
+        active INTEGER NOT NULL DEFAULT 1,
+        last_login_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_peons_username ON peons(username)`,
+      // Per-printer paper tracking
+      `CREATE TABLE IF NOT EXISTS printer_paper (
+        printer_name TEXT PRIMARY KEY,
+        current_count INTEGER NOT NULL DEFAULT 0,
+        low_threshold INTEGER NOT NULL DEFAULT 50,
+        last_loaded_at TEXT,
+        last_loaded_by TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // Paper reload history
+      `CREATE TABLE IF NOT EXISTS paper_reloads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        printer_name TEXT NOT NULL,
+        added_count INTEGER NOT NULL,
+        previous_count INTEGER NOT NULL,
+        new_count INTEGER NOT NULL,
+        loaded_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_paper_reloads_printer ON paper_reloads(printer_name)`,
+      `CREATE INDEX IF NOT EXISTS idx_paper_reloads_created ON paper_reloads(created_at)`,
+    ],
+  },
 ];

@@ -9,17 +9,19 @@ import { getAllPolicies, createPolicy, updatePolicy, deletePolicy, isSafeRegex }
 import { getAllJobs, transitionJob, getJob, createJob } from '../models/job';
 import { getPrinterStatus, getAllPrinterStatuses, enablePrinter, disablePrinter, listPrinters, cancelJob } from '../services/cups';
 import { getOrProbePrinter } from '../models/printer';
-import { enqueueJob, getQueueDepth } from '../services/queue';
+import { enqueueJob, getQueueDepth, isQueuePaused, getPauseReason, pauseQueue, resumeQueue, getQueueStatus } from '../services/queue';
 import { processRefund } from '../services/refund';
 import { getDb } from '../db/connection';
 import { logger } from '../config/logger';
 import { getDailyPageLimit, setDailyPageLimit } from '../services/limits';
 import { validatePdf, getPageCount } from '../services/pdf';
 import { getOperatingHours, setOperatingHours, OperatingHours } from '../services/settings';
+import { forceStatusBroadcast } from '../services/printerStatus';
 import os from 'os';
 import fs from 'fs';
 import { env } from '../config/env';
 import { telegram } from '../services/telegram';
+import { getAllPaperStatus, getPaperStatus, addPaper, setLowThreshold, getReloadHistory } from '../services/paperTracking';
 
 // Multer for admin uploads
 const adminStorage = multer.diskStorage({
@@ -664,6 +666,8 @@ adminRouter.get('/health', async (_req: Request, res: Response) => {
       printer: printerStatus,
       queue: {
         depth: getQueueDepth(),
+        paused: isQueuePaused(),
+        pauseReason: getPauseReason(),
         ...counts,
       },
       system: {
@@ -680,6 +684,121 @@ adminRouter.get('/health', async (_req: Request, res: Response) => {
   } catch (err: any) {
     logger.error({ err: err.message }, 'Health check failed');
     res.status(500).json({ error: 'Health check failed' });
+  }
+});
+
+// --- Queue Control ---
+
+adminRouter.get('/queue/status', requireAdmin, (_req: Request, res: Response) => {
+  try {
+    const status = getQueueStatus();
+    res.json(status);
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to get queue status');
+    res.status(500).json({ error: 'Failed to get queue status' });
+  }
+});
+
+adminRouter.post('/queue/pause', requireAdmin, (req: Request, res: Response) => {
+  try {
+    const { reason } = req.body;
+    pauseQueue(reason || 'Paused by admin');
+    logger.info({ reason }, 'Queue paused by admin');
+    forceStatusBroadcast().catch(() => {});
+    res.json({ success: true, paused: true, reason: reason || 'Paused by admin' });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to pause queue');
+    res.status(500).json({ error: 'Failed to pause queue' });
+  }
+});
+
+adminRouter.post('/queue/resume', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    // Check printer status before resuming
+    const printerStatus = await getPrinterStatus();
+    
+    if (printerStatus.errorType === 'paper_empty') {
+      res.status(400).json({ 
+        error: 'Cannot resume: printer is out of paper',
+        printerStatus 
+      });
+      return;
+    }
+    
+    if (printerStatus.errorType === 'paper_jam') {
+      res.status(400).json({ 
+        error: 'Cannot resume: paper jam detected',
+        printerStatus 
+      });
+      return;
+    }
+    
+    if (printerStatus.errorType === 'cover_open') {
+      res.status(400).json({ 
+        error: 'Cannot resume: printer cover is open',
+        printerStatus 
+      });
+      return;
+    }
+    
+    resumeQueue();
+    logger.info('Queue resumed by admin');
+    forceStatusBroadcast().catch(() => {});
+    res.json({ success: true, paused: false });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to resume queue');
+    res.status(500).json({ error: 'Failed to resume queue' });
+  }
+});
+
+// Force resume even if printer has errors (admin override)
+adminRouter.post('/queue/force-resume', requireAdmin, (_req: Request, res: Response) => {
+  try {
+    resumeQueue();
+    logger.warn('Queue FORCE resumed by admin (ignoring printer errors)');
+    forceStatusBroadcast().catch(() => {});
+    res.json({ success: true, paused: false, forced: true });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to force resume queue');
+    res.status(500).json({ error: 'Failed to force resume queue' });
+  }
+});
+
+// Acknowledge paper refill (clears error state and resumes queue)
+adminRouter.post('/queue/acknowledge-paper', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Verify printer is actually OK now
+    const printerStatus = await getPrinterStatus();
+    
+    if (printerStatus.errorType === 'paper_empty') {
+      res.status(400).json({ 
+        error: 'Printer still reports paper empty. Please load paper first.',
+        printerStatus 
+      });
+      return;
+    }
+    
+    if (printerStatus.errorType === 'paper_jam') {
+      res.status(400).json({ 
+        error: 'Paper jam still detected. Please clear the jam first.',
+        printerStatus 
+      });
+      return;
+    }
+    
+    resumeQueue();
+    logger.info('Paper acknowledged by admin, queue resumed');
+    forceStatusBroadcast().catch(() => {});
+    telegram.queueResumed().catch(() => {});
+    
+    res.json({ 
+      success: true, 
+      message: 'Paper acknowledged, queue resumed',
+      printerStatus 
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to acknowledge paper');
+    res.status(500).json({ error: 'Failed to acknowledge paper' });
   }
 });
 
@@ -947,4 +1066,212 @@ adminRouter.get('/telegram/status', (_req: Request, res: Response) => {
     botToken: env.TELEGRAM_BOT_TOKEN ? '****' + env.TELEGRAM_BOT_TOKEN.slice(-4) : '',
     chatId: env.TELEGRAM_CHAT_ID || '',
   });
+});
+
+// ============ PEON MANAGEMENT ============
+
+// Get all peons
+adminRouter.get('/peons', requireAdmin, (_req: Request, res: Response) => {
+  const db = getDb();
+  const peons = db.prepare(`
+    SELECT id, username, display_name, active, last_login_at, created_at
+    FROM peons ORDER BY created_at DESC
+  `).all();
+  res.json({ peons });
+});
+
+// Create peon
+adminRouter.post('/peons', requireAdmin, async (req: Request, res: Response) => {
+  const { username, password, displayName } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+
+  if (username.length < 3 || username.length > 30) {
+    return res.status(400).json({ error: 'Username must be 3-30 characters' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  const db = getDb();
+
+  try {
+    // Check if username exists
+    const existing = db.prepare('SELECT id FROM peons WHERE username = ?').get(username);
+    if (existing) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = db.prepare(`
+      INSERT INTO peons (username, password_hash, display_name)
+      VALUES (?, ?, ?)
+    `).run(username, passwordHash, displayName || username);
+
+    logger.info({ peonId: result.lastInsertRowid, username }, 'Peon created');
+
+    res.json({
+      success: true,
+      peon: {
+        id: result.lastInsertRowid,
+        username,
+        displayName: displayName || username,
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to create peon');
+    res.status(500).json({ error: 'Failed to create peon' });
+  }
+});
+
+// Update peon
+adminRouter.put('/peons/:id', requireAdmin, async (req: Request, res: Response) => {
+  const peonId = parseInt(req.params.id as string);
+  const { displayName, password, active } = req.body;
+
+  const db = getDb();
+
+  try {
+    const peon = db.prepare('SELECT id FROM peons WHERE id = ?').get(peonId);
+    if (!peon) {
+      return res.status(404).json({ error: 'Peon not found' });
+    }
+
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (displayName !== undefined) {
+      updates.push('display_name = ?');
+      params.push(displayName);
+    }
+
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      updates.push('password_hash = ?');
+      params.push(await bcrypt.hash(password, 10));
+    }
+
+    if (active !== undefined) {
+      updates.push('active = ?');
+      params.push(active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No updates provided' });
+    }
+
+    updates.push("updated_at = datetime('now')");
+    params.push(peonId);
+
+    db.prepare(`UPDATE peons SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+
+    logger.info({ peonId }, 'Peon updated');
+    res.json({ success: true });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to update peon');
+    res.status(500).json({ error: 'Failed to update peon' });
+  }
+});
+
+// Delete (deactivate) peon
+adminRouter.delete('/peons/:id', requireAdmin, (req: Request, res: Response) => {
+  const peonId = parseInt(req.params.id as string);
+  const db = getDb();
+
+  try {
+    const result = db.prepare(
+      "UPDATE peons SET active = 0, updated_at = datetime('now') WHERE id = ?"
+    ).run(peonId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Peon not found' });
+    }
+
+    logger.info({ peonId }, 'Peon deactivated');
+    res.json({ success: true });
+  } catch (err: any) {
+    logger.error({ err: err.message }, 'Failed to delete peon');
+    res.status(500).json({ error: 'Failed to delete peon' });
+  }
+});
+
+// ============ PAPER TRACKING (ADMIN) ============
+
+// Get all paper status + active printer from CUPS
+adminRouter.get('/paper/status', requireAdmin, async (_req: Request, res: Response) => {
+  const paperStatus = getAllPaperStatus();
+  
+  // Also get the active CUPS printer name
+  const printerName = process.env.PRINTER_NAME || 'default';
+  
+  // If active printer not in paper tracking, add it
+  const activePrinterTracked = paperStatus.some(p => p.printerName === printerName);
+  if (!activePrinterTracked) {
+    // Create tracking entry for active printer
+    const activeStatus = getPaperStatus(printerName); // This creates entry if not exists
+    paperStatus.push(activeStatus);
+  }
+  
+  res.json({ printers: paperStatus, activePrinter: printerName });
+});
+
+// Set low threshold for a printer
+adminRouter.put('/paper/threshold/:printerName', requireAdmin, (req: Request, res: Response) => {
+  const printerName = req.params.printerName as string;
+  const { threshold } = req.body;
+
+  if (typeof threshold !== 'number' || threshold < 0 || threshold > 1000) {
+    return res.status(400).json({ error: 'Threshold must be a number between 0 and 1000' });
+  }
+
+  try {
+    setLowThreshold(printerName, threshold);
+    res.json({ success: true, printerName, threshold });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to set threshold' });
+  }
+});
+
+// Admin can also add paper (count >= 0 to allow initial tracking setup)
+adminRouter.post('/paper/add', requireAdmin, (req: Request, res: Response) => {
+  const { printerName, count } = req.body;
+
+  if (!printerName || typeof count !== 'number' || count < 0) {
+    return res.status(400).json({ error: 'printerName and count (>= 0) required' });
+  }
+
+  const admin = (req as any).admin;
+  
+  // If count is 0, just create the tracking entry
+  if (count === 0) {
+    const status = getPaperStatus(printerName); // Creates entry if not exists
+    return res.json({ 
+      success: true, 
+      previousCount: 0, 
+      addedCount: 0, 
+      newCount: status.currentCount 
+    });
+  }
+
+  const result = addPaper(printerName, count, `Admin: ${admin?.username || 'unknown'}`);
+
+  if (!result.success) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  res.json(result);
+});
+
+// Get paper reload history
+adminRouter.get('/paper/history', requireAdmin, (req: Request, res: Response) => {
+  const printerName = req.query.printer as string | undefined;
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  
+  const history = getReloadHistory(printerName, limit);
+  res.json({ history });
 });

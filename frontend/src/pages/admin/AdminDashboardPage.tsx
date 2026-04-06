@@ -31,10 +31,14 @@ import {
   Clock,
   Wrench,
   Bell,
+  Users,
+  Package,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-type Tab = 'overview' | 'jobs' | 'policies' | 'limits' | 'quickprint' | 'maintenance';
+type Tab = 'overview' | 'jobs' | 'policies' | 'limits' | 'quickprint' | 'maintenance' | 'peons' | 'paper';
 
 function formatTime(raw: string | undefined): string {
   if (!raw) return '—';
@@ -60,70 +64,86 @@ export default function AdminDashboardPage() {
     navigate('/admin/login');
   };
 
+  const menuItems = [
+    { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'jobs', label: 'Jobs', icon: FileText },
+    { id: 'policies', label: 'Email Policies', icon: Shield },
+    { id: 'limits', label: 'Print Limits', icon: Gauge },
+    { id: 'peons', label: 'Peons', icon: Users },
+    { id: 'paper', label: 'Paper', icon: Package },
+    { id: 'quickprint', label: 'Quick Print', icon: Upload },
+    { id: 'maintenance', label: 'Maintenance', icon: Wrench },
+  ] as const;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-white">
-            <Shield size={24} className="text-primary-600" />
-            Admin Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Logged in as {displayName}</p>
+    <div className="flex h-[calc(100vh-57px)]">
+      {/* Sidebar - fixed full height */}
+      <aside className="w-56 flex-shrink-0 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col">
+        <div className="p-4 border-b dark:border-gray-700">
+          <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Shield size={18} className="text-primary-600" />
+            Admin Panel
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{displayName}</p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-3 py-1.5 border dark:border-gray-600 rounded-lg transition"
-        >
-          <LogOut size={14} />
-          Logout
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg overflow-x-auto">
-        {([
-          { id: 'overview', label: 'Overview', icon: Activity },
-          { id: 'jobs', label: 'Jobs', icon: FileText },
-          { id: 'policies', label: 'Email Policies', icon: Shield },
-          { id: 'limits', label: 'Print Limits', icon: Gauge },
-          { id: 'quickprint', label: 'Quick Print', icon: Upload },
-          { id: 'maintenance', label: 'Maintenance', icon: Wrench },
-        ] as const).map(({ id, label, icon: Icon }) => (
+        
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+          {menuItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                tab === id
+                  ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Icon size={18} />
+              {label}
+            </button>
+          ))}
+          
+          <div className="border-t dark:border-gray-700 my-2" />
+          
           <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition whitespace-nowrap ${
-              tab === id
-                ? 'bg-white dark:bg-gray-700 shadow text-primary-700 dark:text-primary-400'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
+            onClick={() => navigate('/admin/analytics')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           >
-            <Icon size={16} />
-            <span className="hidden sm:inline">{label}</span>
+            <BarChart3 size={18} />
+            Analytics
           </button>
-        ))}
-        <button
-          onClick={() => navigate('/admin/analytics')}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
-        >
-          <BarChart3 size={16} />
-          <span className="hidden sm:inline">Analytics</span>
-        </button>
-        <button
-          onClick={() => navigate('/admin/announcements')}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 whitespace-nowrap"
-        >
-          <Megaphone size={16} />
-          <span className="hidden sm:inline">Announcements</span>
-        </button>
-      </div>
+          <button
+            onClick={() => navigate('/admin/announcements')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          >
+            <Megaphone size={18} />
+            Announcements
+          </button>
+        </nav>
 
-      {tab === 'overview' && <OverviewTab token={token!} />}
-      {tab === 'jobs' && <JobsTab token={token!} />}
-      {tab === 'policies' && <PoliciesTab token={token!} />}
-      {tab === 'limits' && <LimitsTab token={token!} />}
-      {tab === 'quickprint' && <QuickPrintTab token={token!} />}
-      {tab === 'maintenance' && <MaintenanceTab token={token!} />}
+        {/* Logout at bottom */}
+        <div className="p-2 border-t dark:border-gray-700">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+          >
+            <LogOut size={16} />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto">
+        {tab === 'overview' && <OverviewTab token={token!} />}
+        {tab === 'jobs' && <JobsTab token={token!} />}
+        {tab === 'policies' && <PoliciesTab token={token!} />}
+        {tab === 'limits' && <LimitsTab token={token!} />}
+        {tab === 'peons' && <PeonsTab token={token!} />}
+        {tab === 'paper' && <PaperTab token={token!} />}
+        {tab === 'quickprint' && <QuickPrintTab token={token!} />}
+        {tab === 'maintenance' && <MaintenanceTab token={token!} />}
+      </main>
     </div>
   );
 }
@@ -1312,6 +1332,647 @@ function MaintenanceTab({ token }: { token: string }) {
               </button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Peons Tab ---
+function PeonsTab({ token }: { token: string }) {
+  const [peons, setPeons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  
+  // Create form
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchPeons = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.adminGetPeons(token);
+      setPeons(data.peons || []);
+    } catch {
+      toast.error('Failed to load peons');
+    }
+    setLoading(false);
+  }, [token]);
+
+  useEffect(() => {
+    fetchPeons();
+  }, [fetchPeons]);
+
+  const handleCreate = async () => {
+    if (!newUsername || !newPassword) {
+      toast.error('Username and password required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await api.adminCreatePeon(newUsername, newPassword, newDisplayName || newUsername, token);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Peon created');
+        setShowCreate(false);
+        setNewUsername('');
+        setNewPassword('');
+        setNewDisplayName('');
+        fetchPeons();
+      }
+    } catch {
+      toast.error('Failed to create peon');
+    }
+    setSubmitting(false);
+  };
+
+  const handleToggleActive = async (peon: any) => {
+    try {
+      const result = await api.adminUpdatePeon(peon.id, { active: !peon.active }, token);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(peon.active ? 'Peon deactivated' : 'Peon activated');
+        fetchPeons();
+      }
+    } catch {
+      toast.error('Failed to update peon');
+    }
+  };
+
+  const handleDelete = async (peonId: number) => {
+    if (!confirm('Deactivate this peon account?')) return;
+    try {
+      const result = await api.adminDeletePeon(peonId, token);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Peon deactivated');
+        fetchPeons();
+      }
+    } catch {
+      toast.error('Failed to delete peon');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold dark:text-white flex items-center gap-2">
+          <Users size={20} />
+          Peon Management
+        </h2>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchPeons}
+            className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 px-2 py-1"
+          >
+            <RefreshCw size={14} />
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1 bg-primary-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-700"
+          >
+            <Plus size={16} />
+            Add Peon
+          </button>
+        </div>
+      </div>
+
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Peons can access the Paper Portal at <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">/peon</code> to manage paper levels.
+      </p>
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="animate-spin text-gray-400" />
+        </div>
+      ) : peons.length === 0 ? (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No peons created yet
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 divide-y dark:divide-gray-700">
+          {peons.map((peon) => (
+            <div key={peon.id} className="p-4 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium dark:text-white">{peon.display_name || peon.username}</span>
+                  {!peon.active && (
+                    <span className="text-xs bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 px-2 py-0.5 rounded">
+                      Inactive
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">@{peon.username}</p>
+                {peon.last_login_at && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Last login: {formatTime(peon.last_login_at)}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleToggleActive(peon)}
+                  className={`p-2 rounded-lg transition ${peon.active ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                  title={peon.active ? 'Deactivate' : 'Activate'}
+                >
+                  {peon.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                </button>
+                <button
+                  onClick={() => handleDelete(peon.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border dark:border-gray-700">
+            <h3 className="text-lg font-semibold dark:text-white mb-4 flex items-center gap-2">
+              <Users size={20} className="text-primary-600" />
+              Add Peon
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder="peon1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  value={newDisplayName}
+                  onChange={(e) => setNewDisplayName(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder="Ram Kumar"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+                    placeholder="••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowCreate(false); setNewUsername(''); setNewPassword(''); setNewDisplayName(''); }}
+                className="flex-1 py-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={submitting || !newUsername || !newPassword}
+                className="flex-1 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Paper Tab ---
+function PaperTab({ token }: { token: string }) {
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [activePrinter, setActivePrinter] = useState<string>('');
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addPaperPrinter, setAddPaperPrinter] = useState<string | null>(null);
+  const [addPaperCount, setAddPaperCount] = useState('');
+  const [addPaperLoading, setAddPaperLoading] = useState(false);
+  const [editThreshold, setEditThreshold] = useState<{ printer: string; value: number } | null>(null);
+  const [showAddNew, setShowAddNew] = useState(false);
+  const [newPrinterName, setNewPrinterName] = useState('');
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch paper status, history, AND active printer from CUPS
+      const [paperRes, historyRes, printerRes] = await Promise.all([
+        api.adminGetPaperStatus(token),
+        api.adminGetPaperHistory(token, undefined, 20),
+        api.getPrinterStatus(),
+      ]);
+      setPrinters(paperRes.printers || []);
+      // Use CUPS printer name, fallback to backend config
+      setActivePrinter(printerRes.printerName || paperRes.activePrinter || '');
+      setHistory(historyRes.history || []);
+    } catch {
+      toast.error('Failed to load paper status');
+    }
+    setLoading(false);
+  }, [token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddPaper = async () => {
+    if (!addPaperPrinter || !addPaperCount) return;
+    const count = parseInt(addPaperCount);
+    if (isNaN(count) || count <= 0) {
+      toast.error('Enter a valid number');
+      return;
+    }
+    setAddPaperLoading(true);
+    try {
+      const result = await api.adminAddPaper(addPaperPrinter, count, token);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Added ${count} sheets`);
+        setAddPaperPrinter(null);
+        setAddPaperCount('');
+        fetchData();
+      }
+    } catch {
+      toast.error('Failed to add paper');
+    }
+    setAddPaperLoading(false);
+  };
+
+  const handleAddNewPrinter = async () => {
+    const printerToAdd = newPrinterName.trim() || activePrinter;
+    if (!printerToAdd) {
+      toast.error('Enter printer name');
+      return;
+    }
+    const count = parseInt(addPaperCount) || 0;
+    setAddPaperLoading(true);
+    try {
+      const result = await api.adminAddPaper(printerToAdd, count, token);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Added ${printerToAdd} with ${count} sheets`);
+        setShowAddNew(false);
+        setNewPrinterName('');
+        setAddPaperCount('');
+        fetchData();
+      }
+    } catch {
+      toast.error('Failed to add printer');
+    }
+    setAddPaperLoading(false);
+  };
+
+  const handleSetThreshold = async () => {
+    if (!editThreshold) return;
+    try {
+      const result = await api.adminSetPaperThreshold(editThreshold.printer, editThreshold.value, token);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Threshold updated');
+        setEditThreshold(null);
+        fetchData();
+      }
+    } catch {
+      toast.error('Failed to update threshold');
+    }
+  };
+
+  const getPaperBarColor = (count: number, threshold: number) => {
+    if (count === 0) return 'bg-red-500';
+    if (count <= threshold) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  const getPaperPercentage = (count: number) => {
+    return Math.min(100, (count / 500) * 100);
+  };
+
+  // Check if active printer is already tracked
+  const activePrinterTracked = printers.some(p => p.printerName === activePrinter);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold dark:text-white flex items-center gap-2">
+          <Package size={20} />
+          Paper Tracking
+        </h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAddNew(true)}
+            className="flex items-center gap-1 text-sm bg-primary-600 text-white px-3 py-1.5 rounded-lg hover:bg-primary-700"
+          >
+            <Plus size={14} />
+            Add Printer
+          </button>
+          <button
+            onClick={fetchData}
+            className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 px-2 py-1"
+          >
+            <RefreshCw size={14} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Active Printer Info */}
+      {activePrinter && !activePrinterTracked && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            <strong>Active printer:</strong> {activePrinter} is not being tracked.
+            <button
+              onClick={() => { setNewPrinterName(activePrinter); setShowAddNew(true); }}
+              className="ml-2 text-primary-600 hover:underline"
+            >
+              Add to tracking →
+            </button>
+          </p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="animate-spin text-gray-400" />
+        </div>
+      ) : printers.length === 0 ? (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <p>No printers tracked yet.</p>
+          {activePrinter && (
+            <button
+              onClick={() => { setNewPrinterName(activePrinter); setShowAddNew(true); }}
+              className="mt-2 text-primary-600 hover:underline"
+            >
+              Add {activePrinter} to tracking →
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Printer Cards */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {printers.map((printer) => (
+              <div key={printer.printerName} className={`bg-white dark:bg-gray-800 rounded-xl border p-4 ${printer.printerName === activePrinter ? 'border-primary-500 dark:border-primary-500' : 'dark:border-gray-700'}`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-medium dark:text-white">{printer.printerName}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Threshold: {printer.lowThreshold} sheets
+                      <button
+                        onClick={() => setEditThreshold({ printer: printer.printerName, value: printer.lowThreshold })}
+                        className="ml-2 text-primary-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setAddPaperPrinter(printer.printerName)}
+                    className="flex items-center gap-1 bg-primary-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-700"
+                  >
+                    <Plus size={14} />
+                    Add
+                  </button>
+                </div>
+
+                {/* Paper Bar */}
+                <div className="mb-2">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className={`flex items-center gap-1 ${printer.isLow ? 'text-yellow-600 dark:text-yellow-400 font-medium' : 'text-gray-600 dark:text-gray-300'}`}>
+                      {printer.isLow && <AlertTriangle size={14} />}
+                      {printer.currentCount} sheets
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${getPaperBarColor(printer.currentCount, printer.lowThreshold)}`}
+                      style={{ width: `${getPaperPercentage(printer.currentCount)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {printer.lastLoadedAt && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Last loaded: {formatTime(printer.lastLoadedAt)} by {printer.lastLoadedBy}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Recent History */}
+          <div>
+            <h3 className="text-md font-medium dark:text-white mb-3 flex items-center gap-2">
+              <Clock size={16} />
+              Recent Reloads
+            </h3>
+            {history.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No reload history yet</p>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 divide-y dark:divide-gray-700">
+                {history.slice(0, 10).map((entry) => (
+                  <div key={entry.id} className="p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm dark:text-white">
+                        <strong>+{entry.addedCount}</strong> sheets → {entry.printerName}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        by {entry.loadedBy} • {entry.previousCount} → {entry.newCount}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      {formatTime(entry.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Add Paper Modal */}
+      {addPaperPrinter && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full p-6 border dark:border-gray-700">
+            <h3 className="text-lg font-semibold dark:text-white mb-4">Add Paper</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Printer: <strong className="dark:text-white">{addPaperPrinter}</strong>
+            </p>
+            
+            <input
+              type="number"
+              value={addPaperCount}
+              onChange={(e) => setAddPaperCount(e.target.value)}
+              className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg text-lg text-center bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none mb-4"
+              placeholder="500"
+              min="1"
+              max="10000"
+              autoFocus
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setAddPaperPrinter(null); setAddPaperCount(''); }}
+                className="flex-1 py-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddPaper}
+                disabled={addPaperLoading || !addPaperCount}
+                className="flex-1 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {addPaperLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Threshold Modal */}
+      {editThreshold && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full p-6 border dark:border-gray-700">
+            <h3 className="text-lg font-semibold dark:text-white mb-4">Set Low Threshold</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Alert when paper drops below this level
+            </p>
+            
+            <input
+              type="number"
+              value={editThreshold.value}
+              onChange={(e) => setEditThreshold({ ...editThreshold, value: parseInt(e.target.value) || 0 })}
+              className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg text-lg text-center bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none mb-4"
+              min="0"
+              max="1000"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditThreshold(null)}
+                className="flex-1 py-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSetThreshold}
+                className="flex-1 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Printer Modal */}
+      {showAddNew && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full p-6 border dark:border-gray-700">
+            <h3 className="text-lg font-semibold dark:text-white mb-4 flex items-center gap-2">
+              <Printer size={20} className="text-primary-600" />
+              Add Printer to Tracking
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Printer Name
+                </label>
+                <input
+                  type="text"
+                  value={newPrinterName}
+                  onChange={(e) => setNewPrinterName(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder={activePrinter || "HP-LaserJet-1020"}
+                  autoFocus
+                />
+                {activePrinter && !newPrinterName && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Leave empty to use active printer: <strong>{activePrinter}</strong>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Initial Paper Count
+                </label>
+                <input
+                  type="number"
+                  value={addPaperCount}
+                  onChange={(e) => setAddPaperCount(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder="500"
+                  min="0"
+                  max="10000"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Enter current paper count (0 if empty)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowAddNew(false); setNewPrinterName(''); setAddPaperCount(''); }}
+                className="flex-1 py-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddNewPrinter}
+                disabled={addPaperLoading}
+                className="flex-1 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {addPaperLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Add
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
